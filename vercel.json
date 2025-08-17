@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "functions": {
+    "api/spotify.js": { "runtime": "nodejs20.x" }
+  }
+}

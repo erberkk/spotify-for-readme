@@ -1,100 +1,209 @@
+// api/spotify.js
 const {
   SPOTIFY_CLIENT_ID,
   SPOTIFY_CLIENT_SECRET,
   SPOTIFY_REFRESH_TOKEN
 } = process.env;
 
-function svg({ title, artist, url }) {
-  const t = (s) => (s || '—').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  return `
-<svg width="500" height="120" viewBox="0 0 500 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Spotify Now Playing">
-  <rect width="100%" height="100%" fill="#121212"/>
-  <text x="20" y="40" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="16" fill="#1DB954" font-weight="700">
-    Now Playing on Spotify
-  </text>
-  <text x="20" y="70" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="18" fill="#FFFFFF" font-weight="600">
-    ${t(title)}
-  </text>
-  <text x="20" y="95" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="14" fill="#BBBBBB">
-    ${t(artist)}
-  </text>
-  <a href="${url || 'https://open.spotify.com/'}">
-    <rect x="0" y="0" width="500" height="120" fill="transparent"/>
-  </a>
-</svg>`.trim();
-}
+const BG = "#121212";
+const GREEN = "#1DB954";
+const FG = "#FFFFFF";
+const MUTED = "#BBBBBB";
 
 async function getAccessToken() {
-  const auth = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
+  const auth = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString("base64");
   const body = new URLSearchParams({
-    grant_type: 'refresh_token',
+    grant_type: "refresh_token",
     refresh_token: SPOTIFY_REFRESH_TOKEN
   });
 
-  const res = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
+  const res = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
     headers: {
       Authorization: `Basic ${auth}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
+      "Content-Type": "application/x-www-form-urlencoded"
     },
-    body // fetch URLSearchParams'ı kabul eder
+    body
   });
 
-  if (!res.ok) throw new Error('Token yenileme başarısız');
+  if (!res.ok) throw new Error("Token yenileme başarısız");
   const data = await res.json();
   return data.access_token;
 }
 
 async function getNowPlaying(token) {
-  const r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+  const r = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
     headers: { Authorization: `Bearer ${token}` }
   });
 
-  if (r.status === 204) return null;        // o an çalmıyor
-  if (!r.ok) return null;
-
+  if (r.status === 204 || !r.ok) return null;
   const data = await r.json();
-  const item = data.item;
+  const item = data?.item;
   if (!item) return null;
 
-  const title = item.name;
-  const artist = item.artists?.map(a => a.name).join(', ');
-  const url = item.external_urls?.spotify;
-  return { title, artist, url };
+  return {
+    title: item.name,
+    artist: item.artists?.map(a => a.name).join(", "),
+    url: item.external_urls?.spotify,
+    albumImage: item.album?.images?.[0]?.url || null,
+    isPlaying: data.is_playing === true
+  };
 }
 
-async function getLastPlayed(token) {
-  const r = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=1', {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+async function getTop(token) {
+  // son 1 ay: short_term
+  const [tracksRes, artistsRes] = await Promise.all([
+    fetch("https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5", {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+    fetch("https://api.spotify.com/v1/me/top/artists?time_range=short_term&limit=5", {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+  ]);
+
+  const tracksJson = tracksRes.ok ? await tracksRes.json() : { items: [] };
+  const artistsJson = artistsRes.ok ? await artistsRes.json() : { items: [] };
+
+  const topTracks = (tracksJson.items || []).map(t => ({
+    title: t.name,
+    artist: t.artists?.map(a => a.name).join(", "),
+    image: t.album?.images?.[2]?.url || t.album?.images?.[0]?.url || null // küçük görsel
+  }));
+
+  const topArtists = (artistsJson.items || []).map(a => ({
+    name: a.name,
+    image: a.images?.[2]?.url || a.images?.[0]?.url || null
+  }));
+
+  return { topTracks, topArtists };
+}
+
+// Görseli data URI (base64) yap
+async function toDataUri(url) {
+  if (!url) return null;
+  const r = await fetch(url);
   if (!r.ok) return null;
+  const buf = Buffer.from(await r.arrayBuffer());
+  const mime = r.headers.get("content-type") || "image/jpeg";
+  return `data:${mime};base64,${buf.toString("base64")}`;
+}
 
-  const data = await r.json();
-  const item = data.items?.[0]?.track;
-  if (!item) return null;
+function esc(s) {
+  return (s || "—").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+}
 
-  const title = item.name;
-  const artist = item.artists?.map(a => a.name).join(', ');
-  const url = item.external_urls?.spotify;
-  return { title, artist, url };
+function circleImage(id, x, y, size) {
+  const r = size / 2;
+  return `
+  <defs>
+    <clipPath id="${id}">
+      <circle cx="${x + r}" cy="${y + r}" r="${r}" />
+    </clipPath>
+  </defs>
+  <image href="" x="${x}" y="${y}" width="${size}" height="${size}" clip-path="url(#${id})" id="${id}-img" />
+`.trim();
+}
+
+function svgLayout({ now, topTracks, topArtists, albumDataUri, trackDataUris, artistDataUris }) {
+  // Boyutlar
+  const W = 900, H = 220;
+  return `
+<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Spotify Summary">
+  <rect width="100%" height="100%" fill="${BG}"/>
+
+  <!-- Header -->
+  <text x="20" y="32" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="18" fill="${GREEN}" font-weight="700">
+    Now Playing on Spotify
+  </text>
+
+  <!-- Now Playing card -->
+  <rect x="20" y="50" width="290" height="150" rx="12" fill="#181818" />
+  ${albumDataUri ? `<image href="${albumDataUri}" x="32" y="62" width="120" height="120" />`
+                  : `<rect x="32" y="62" width="120" height="120" fill="#222" />`}
+  <text x="166" y="94" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="16" fill="${FG}" font-weight="600">
+    ${esc(now?.title || "Not playing")}
+  </text>
+  <text x="166" y="120" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="13" fill="${MUTED}">
+    ${esc(now?.artist || "—")}
+  </text>
+  ${now?.url ? `<a href="${now.url}"><rect x="20" y="50" width="290" height="150" rx="12" fill="transparent"/></a>` : ""}
+
+  <!-- Top Tracks -->
+  <text x="330" y="32" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="18" fill="${GREEN}" font-weight="700">
+    Top Tracks (last month)
+  </text>
+  ${topTracks.map((t, i) => {
+    const y = 56 + i * 32;
+    const img = trackDataUris[i];
+    return `
+      <g>
+        ${img ? `<image href="${img}" x="330" y="${y - 16}" width="24" height="24"/>`
+               : `<rect x="330" y="${y - 16}" width="24" height="24" fill="#222"/>`}
+        <text x="360" y="${y}" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="13" fill="${FG}">
+          ${esc(t.title)} — <tspan fill="${MUTED}">${esc(t.artist)}</tspan>
+        </text>
+      </g>
+    `;
+  }).join("")}
+
+  <!-- Top Artists -->
+  <text x="620" y="32" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="18" fill="${GREEN}" font-weight="700">
+    Top Artists (last month)
+  </text>
+  ${topArtists.map((a, i) => {
+    const y = 56 + i * 32;
+    const img = artistDataUris[i];
+    return `
+      <g>
+        ${img ? `<image href="${img}" x="620" y="${y - 18}" width="26" height="26" clip-path="circle(13px at 633px ${y - 5}px)"/>`
+               : `<rect x="620" y="${y - 18}" width="26" height="26" fill="#222"/>`}
+        <text x="652" y="${y}" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="13" fill="${FG}">
+          ${esc(a.name)}
+        </text>
+      </g>
+    `;
+  }).join("")}
+</svg>`.trim();
 }
 
 export default async function handler(req, res) {
   try {
     if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET || !SPOTIFY_REFRESH_TOKEN) {
-      res.status(500).send('Env vars eksik');
+      res.status(500).send("Env vars eksik");
       return;
     }
 
     const token = await getAccessToken();
-    let track = await getNowPlaying(token);
-    if (!track) track = await getLastPlayed(token);
 
-    res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate');
-    res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
-    res.status(200).send(svg(track || { title: 'Not playing', artist: '', url: 'https://open.spotify.com/' }));
+    // Verileri paralel topla
+    const [now, top] = await Promise.all([
+      getNowPlaying(token),
+      getTop(token)
+    ]);
+
+    // Görselleri base64 yap
+    const albumDataUri = now?.albumImage ? await toDataUri(now.albumImage) : null;
+    const trackDataUris = await Promise.all(
+      (top.topTracks || []).map(t => t.image ? toDataUri(t.image) : null)
+    );
+    const artistDataUris = await Promise.all(
+      (top.topArtists || []).map(a => a.image ? toDataUri(a.image) : null)
+    );
+
+    const svg = svgLayout({
+      now,
+      topTracks: top.topTracks || [],
+      topArtists: top.topArtists || [],
+      albumDataUri,
+      trackDataUris,
+      artistDataUris
+    });
+
+    res.setHeader("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
+    res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
+    res.status(200).send(svg);
   } catch (e) {
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.status(500).send('Hata: ' + (e?.message || e));
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.status(500).send("Hata: " + (e?.message || e));
   }
 }

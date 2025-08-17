@@ -14,17 +14,16 @@ const COLORS = {
   border: "#222831"
 };
 
-// ===== Utilities =====
 function esc(s) { return (s || "—").replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
 function ellipsize(s, max=48){ if(!s) return "—"; return s.length>max? s.slice(0,max-1)+"…": s; }
 
-// 1x1 transparent png placeholder (base64)
-const BLANK = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAuMBgV3QJRoAAAAASUVORK5CYII=";
+const BLANK =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAuMBgV3QJRoAAAAASUVORK5CYII=";
 
 async function toDataUri(url){
   if(!url) return BLANK;
   try{
-    const r = await fetch(url, { headers: { "User-Agent":"Mozilla/5.0" }});
+    const r = await fetch(url, { headers: { "User-Agent":"Mozilla/5.0" } });
     if(!r.ok) return BLANK;
     const buf = Buffer.from(await r.arrayBuffer());
     const mime = r.headers.get("content-type") || "image/jpeg";
@@ -51,7 +50,6 @@ async function getAccessToken(){
   return j.access_token;
 }
 
-// ===== Spotify fetchers =====
 async function getNowPlaying(token){
   const r = await fetch("https://api.spotify.com/v1/me/player/currently-playing",{
     headers:{ Authorization:`Bearer ${token}` }
@@ -90,56 +88,60 @@ async function getLastPlayed(token){
 
 async function getTop(token){
   const [trRes, arRes] = await Promise.all([
-    fetch("https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5", { headers:{Authorization:`Bearer ${token}`} }),
-    fetch("https://api.spotify.com/v1/me/top/artists?time_range=short_term&limit=5", { headers:{Authorization:`Bearer ${token}`} })
+    fetch("https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5", {
+      headers:{Authorization:`Bearer ${token}`}
+    }),
+    fetch("https://api.spotify.com/v1/me/top/artists?time_range=short_term&limit=5", {
+      headers:{Authorization:`Bearer ${token}`}
+    })
   ]);
-  const tr = trRes.ok? await trRes.json(): {items:[]};
-  const ar = arRes.ok? await arRes.json(): {items:[]};
+
+  const tr = trRes.ok ? await trRes.json() : { items: [] };
+  const ar = arRes.ok ? await arRes.json() : { items: [] };
 
   const tracks = (tr.items||[]).map(t=>({
     title: t.name,
     artist: (t.artists||[]).map(a=>a.name).join(", "),
-    image: t.album?.images?.[2]?.url || t.album?.images?.1?.url || t.album?.images?.[0]?.url || null
+    // 👇 düzeltildi: images?.[1] ve images?.[0]
+    image: t.album?.images?.[2]?.url || t.album?.images?.[1]?.url || t.album?.images?.[0]?.url || null
   }));
+
   const artists = (ar.items||[]).map(a=>({
     name: a.name,
     image: a.images?.[2]?.url || a.images?.[1]?.url || a.images?.[0]?.url || null
   }));
+
   return { tracks, artists };
 }
 
-// ===== SVG layout =====
 function render({ hero, heroImg, topTrackImgs, topArtistImgs, top }){
-  // Canvas ölçüleri ve kolonlar
   const W = 1060, H = 270;
   const gutter = 24;
-  const leftW = 360;                // sol kart (now/last)
-  const colW = Math.floor((W - leftW - gutter*3)/2); // sağdaki 2 kolon eşit
+  const leftW = 360;
+  const colW = Math.floor((W - leftW - gutter*3)/2);
   const col1X = leftW + gutter*2;
   const col2X = leftW + gutter*2 + colW + gutter;
-
-  const listRow = 34; // satır yüksekliği (ikon + text aralığı)
+  const listRow = 34;
   const icon = 26;
 
   return `
 <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Spotify Summary">
   <rect width="100%" height="100%" fill="${COLORS.bg}"/>
 
-  <!-- Sol: Now/Last card -->
+  <!-- Sol: Now/Last -->
   <text x="24" y="32" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="18" font-weight="700" fill="${COLORS.green}">
     ${esc(hero.label)} on Spotify
   </text>
   <g>
     <rect x="20" y="46" width="${leftW}" height="200" rx="14" fill="${COLORS.card}" stroke="${COLORS.border}"/>
-    ${heroImg ? `<image href="${heroImg}" x="32" y="60" width="140" height="140" />`
-              : `<rect x="32" y="60" width="140" height="140" fill="#222"/>`}
+    ${heroImg ? `<image href="${heroImg}" x="32" y="60" width="140" height="140" />` : `<rect x="32" y="60" width="140" height="140" fill="#222"/>`}
     <text x="190" y="98" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="16" fill="${COLORS.text}" font-weight="700">
       ${esc(ellipsize(hero.title, 36))}
     </text>
     <text x="190" y="125" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="13" fill="${COLORS.muted}">
       ${esc(ellipsize(hero.artist, 40))}
     </text>
-    ${hero.url ? `<a href="${hero.url}"><rect x="20" y="46" width="${leftW}" height="200" rx="14" fill="transparent"/></a>`:""}
+    ${hero.url ? `<a href="${hero.url}"><rect x="20" y="46" width="${leftW}" height="200" rx="14" fill="transparent"/></a>` : ""}
   </g>
 
   <!-- Sağ: Top Tracks -->
@@ -183,25 +185,23 @@ function render({ hero, heroImg, topTrackImgs, topArtistImgs, top }){
 </svg>`.trim();
 }
 
-// ===== Handler =====
 export default async function handler(req, res){
   try{
     const token = await getAccessToken();
 
-    // 1) Now Playing; yoksa Last Played
     let hero = await getNowPlaying(token);
     if(!hero) hero = await getLastPlayed(token);
 
-    // 2) Top lists
     const top = await getTop(token);
 
-    // 3) Görselleri data URI’ye çevir
     const heroImg = hero?.image ? await toDataUri(hero.image) : null;
     const topTrackImgs  = await Promise.all((top.tracks||[]).map(t => t.image ? toDataUri(t.image) : BLANK));
     const topArtistImgs = await Promise.all((top.artists||[]).map(a => a.image ? toDataUri(a.image) : BLANK));
 
-    const out = render({ hero: hero || { title:"Not playing", artist:"—", url:null, label:"Now Playing" },
-                         heroImg, topTrackImgs, topArtistImgs, top });
+    const out = render({
+      hero: hero || { title:"Not playing", artist:"—", url:null, label:"Now Playing" },
+      heroImg, topTrackImgs, topArtistImgs, top
+    });
 
     res.setHeader("Cache-Control","no-cache, no-store, max-age=0, must-revalidate");
     res.setHeader("Content-Type","image/svg+xml; charset=utf-8");

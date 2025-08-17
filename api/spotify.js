@@ -1,4 +1,4 @@
-// api/spotify.js — 3 eşit kutu, ellipsize, Last Played fallback, sol kart dikey ortalı
+// api/spotify.js — 3 eşit kutu, ellipsize, Paused & Last Played fallback, sol kart dikey ortalı
 const {
   SPOTIFY_CLIENT_ID,
   SPOTIFY_CLIENT_SECRET,
@@ -51,7 +51,7 @@ async function getNowPlaying(token){
   const r = await fetch("https://api.spotify.com/v1/me/player/currently-playing",{
     headers:{ Authorization:`Bearer ${token}` }
   });
-  if(r.status===204 || !r.ok) return null;
+  if(r.status===204 || !r.ok) return null; // hiç item yok
   const j = await r.json();
   const it = j.item;
   if(!it) return null;
@@ -117,7 +117,7 @@ function render({ hero, heroImg, top, tImgs, aImgs }){
 
   const icon = 24, rowH = 30;
 
-  // --- Sol kart: dikey merkezleme hesapları ---
+  // --- Sol kart: dikey merkezleme ---
   const imgSize = 120;
   const imgX = x1 + 14;
   const imgY = topY + (cardH - imgSize) / 2;
@@ -141,7 +141,7 @@ function render({ hero, heroImg, top, tImgs, aImgs }){
     Top Artists (last month)
   </text>
 
-  <!-- Card 1: Now/Last (dikey ortalı) -->
+  <!-- Card 1: Now/Paused/Last (dikey ortalı) -->
   <g>
     <rect x="${x1}" y="${topY}" width="${cardW}" height="${cardH}" rx="14" fill="${COLORS.card}" stroke="${COLORS.border}"/>
     ${heroImg ? `<image href="${heroImg}" x="${imgX}" y="${imgY}" width="${imgSize}" height="${imgSize}"/>`
@@ -193,30 +193,37 @@ export default async function handler(req, res){
   try{
     const token = await getAccessToken();
 
-    // Now Playing → değilse Last Played
+    // 1) Şu an çalan bilgisi
     const np = await getNowPlaying(token);
     let hero;
-    if (!np || np.isPlaying !== true) {
+
+    if (np) {
+      // item var: playing ya da paused
+      hero = { ...np, label: np.isPlaying ? "Now Playing" : "Paused" };
+    } else {
+      // hiç item yok: recently-played'e düş
       const last = await getLastPlayed(token);
       hero = last ? { ...last, label: "Last Played" }
                   : { title:"Not playing", artist:"—", url:null, image:null, label:"Now Playing" };
-    } else {
-      hero = { ...np, label: "Now Playing" };
     }
 
-    // Top listeler
+    // 2) Top listeler
     const top = await getTop(token);
 
-    // Görseller
+    // 3) Görseller
     const heroImg = hero?.image ? await toDataUri(hero.image) : null;
     const tImgs = await Promise.all((top.tracks||[]).map(t => t.image ? toDataUri(t.image) : BLANK));
     const aImgs = await Promise.all((top.artists||[]).map(a => a.image ? toDataUri(a.image) : BLANK));
 
-    // Çiz
+    // 4) Çiz
     const svg = render({ hero, heroImg, top, tImgs, aImgs });
 
+    // CDN & browser cache’i sıkı kapat
     res.setHeader("Cache-Control","no-cache, no-store, max-age=0, must-revalidate");
+    res.setHeader("CDN-Cache-Control","no-store");
+    res.setHeader("Vercel-CDN-Cache-Control","no-store");
     res.setHeader("Content-Type","image/svg+xml; charset=utf-8");
+
     res.status(200).send(svg);
   }catch(e){
     res.setHeader("Content-Type","text/plain; charset=utf-8");

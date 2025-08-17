@@ -5,186 +5,209 @@ const {
   SPOTIFY_REFRESH_TOKEN
 } = process.env;
 
-const BG = "#121212";
-const GREEN = "#1DB954";
-const FG = "#FFFFFF";
-const MUTED = "#BBBBBB";
+const COLORS = {
+  bg: "#0f1115",
+  card: "#171a21",
+  green: "#1DB954",
+  text: "#FFFFFF",
+  muted: "#B3B3B3",
+  border: "#222831"
+};
 
-async function getAccessToken() {
-  const auth = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString("base64");
+// ===== Utilities =====
+function esc(s) { return (s || "—").replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+function ellipsize(s, max=48){ if(!s) return "—"; return s.length>max? s.slice(0,max-1)+"…": s; }
+
+// 1x1 transparent png placeholder (base64)
+const BLANK = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAuMBgV3QJRoAAAAASUVORK5CYII=";
+
+async function toDataUri(url){
+  if(!url) return BLANK;
+  try{
+    const r = await fetch(url, { headers: { "User-Agent":"Mozilla/5.0" }});
+    if(!r.ok) return BLANK;
+    const buf = Buffer.from(await r.arrayBuffer());
+    const mime = r.headers.get("content-type") || "image/jpeg";
+    return `data:${mime};base64,${buf.toString("base64")}`;
+  }catch{ return BLANK; }
+}
+
+async function getAccessToken(){
   const body = new URLSearchParams({
     grant_type: "refresh_token",
     refresh_token: SPOTIFY_REFRESH_TOKEN
   });
-
+  const auth = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString("base64");
   const res = await fetch("https://accounts.spotify.com/api/token", {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${auth}`,
-      "Content-Type": "application/x-www-form-urlencoded"
+    method:"POST",
+    headers:{
+      Authorization:`Basic ${auth}`,
+      "Content-Type":"application/x-www-form-urlencoded"
     },
     body
   });
-  if (!res.ok) throw new Error("Token yenileme başarısız");
-  const data = await res.json();
-  return data.access_token;
+  if(!res.ok) throw new Error("Token yenileme başarısız");
+  const j = await res.json();
+  return j.access_token;
 }
 
-async function getNowPlaying(token) {
-  const r = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
-    headers: { Authorization: `Bearer ${token}` }
+// ===== Spotify fetchers =====
+async function getNowPlaying(token){
+  const r = await fetch("https://api.spotify.com/v1/me/player/currently-playing",{
+    headers:{ Authorization:`Bearer ${token}` }
   });
-  if (r.status === 204 || !r.ok) return null;
-  const data = await r.json();
-  const item = data?.item;
-  if (!item) return null;
+  if(r.status===204 || !r.ok) return null;
+  const j = await r.json();
+  const it = j.item;
+  if(!it) return null;
   return {
-    title: item.name,
-    artist: item.artists?.map(a => a.name).join(", "),
-    url: item.external_urls?.spotify,
-    albumImage: item.album?.images?.[0]?.url || null, // en büyük
-    isPlaying: data.is_playing === true
+    title: it.name,
+    artist: (it.artists||[]).map(a=>a.name).join(", "),
+    url: it.external_urls?.spotify,
+    image: it.album?.images?.[0]?.url || null,
+    isPlaying: j.is_playing===true,
+    label: "Now Playing"
   };
 }
 
-async function getTop(token) {
-  const [tracksRes, artistsRes] = await Promise.all([
-    fetch("https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5", {
-      headers: { Authorization: `Bearer ${token}` }
-    }),
-    fetch("https://api.spotify.com/v1/me/top/artists?time_range=short_term&limit=5", {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+async function getLastPlayed(token){
+  const r = await fetch("https://api.spotify.com/v1/me/player/recently-played?limit=1",{
+    headers:{ Authorization:`Bearer ${token}` }
+  });
+  if(!r.ok) return null;
+  const j = await r.json();
+  const it = j.items?.[0]?.track;
+  if(!it) return null;
+  return {
+    title: it.name,
+    artist: (it.artists||[]).map(a=>a.name).join(", "),
+    url: it.external_urls?.spotify,
+    image: it.album?.images?.[0]?.url || null,
+    isPlaying: false,
+    label: "Last Played"
+  };
+}
+
+async function getTop(token){
+  const [trRes, arRes] = await Promise.all([
+    fetch("https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5", { headers:{Authorization:`Bearer ${token}`} }),
+    fetch("https://api.spotify.com/v1/me/top/artists?time_range=short_term&limit=5", { headers:{Authorization:`Bearer ${token}`} })
   ]);
+  const tr = trRes.ok? await trRes.json(): {items:[]};
+  const ar = arRes.ok? await arRes.json(): {items:[]};
 
-  const tracksJson = tracksRes.ok ? await tracksRes.json() : { items: [] };
-  const artistsJson = artistsRes.ok ? await artistsRes.json() : { items: [] };
-
-  const topTracks = (tracksJson.items || []).map(t => ({
+  const tracks = (tr.items||[]).map(t=>({
     title: t.name,
-    artist: t.artists?.map(a => a.name).join(", "),
-    image: t.album?.images?.[2]?.url || t.album?.images?.[1]?.url || t.album?.images?.[0]?.url || null
+    artist: (t.artists||[]).map(a=>a.name).join(", "),
+    image: t.album?.images?.[2]?.url || t.album?.images?.1?.url || t.album?.images?.[0]?.url || null
   }));
-
-  const topArtists = (artistsJson.items || []).map(a => ({
+  const artists = (ar.items||[]).map(a=>({
     name: a.name,
     image: a.images?.[2]?.url || a.images?.[1]?.url || a.images?.[0]?.url || null
   }));
-
-  return { topTracks, topArtists };
+  return { tracks, artists };
 }
 
-// 1x1 şeffaf PNG (placeholder)
-const TRANSPARENT_PNG =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAuMBgV3QJRoAAAAASUVORK5CYII=";
+// ===== SVG layout =====
+function render({ hero, heroImg, topTrackImgs, topArtistImgs, top }){
+  // Canvas ölçüleri ve kolonlar
+  const W = 1060, H = 270;
+  const gutter = 24;
+  const leftW = 360;                // sol kart (now/last)
+  const colW = Math.floor((W - leftW - gutter*3)/2); // sağdaki 2 kolon eşit
+  const col1X = leftW + gutter*2;
+  const col2X = leftW + gutter*2 + colW + gutter;
 
-// Görseli data URI (base64) yap – header ekleyip sağlamla
-async function toDataUri(url) {
-  if (!url) return TRANSPARENT_PNG;
-  try {
-    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (!r.ok) return TRANSPARENT_PNG;
-    const buf = Buffer.from(await r.arrayBuffer());
-    const mime = r.headers.get("content-type") || "image/jpeg";
-    return `data:${mime};base64,${buf.toString("base64")}`;
-  } catch {
-    return TRANSPARENT_PNG;
-  }
-}
-
-function esc(s) {
-  return (s || "—").replace(/&/g, "&amp;").replace(/</g, "&lt;");
-}
-
-function svgLayout({ now, topTracks, topArtists, albumDataUri, trackDataUris, artistDataUris }) {
-  const W = 900, H = 220;
+  const listRow = 34; // satır yüksekliği (ikon + text aralığı)
+  const icon = 26;
 
   return `
 <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Spotify Summary">
-  <rect width="100%" height="100%" fill="${BG}"/>
+  <rect width="100%" height="100%" fill="${COLORS.bg}"/>
 
-  <!-- Header -->
-  <text x="20" y="32" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="18" fill="${GREEN}" font-weight="700">
-    Now Playing on Spotify
+  <!-- Sol: Now/Last card -->
+  <text x="24" y="32" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="18" font-weight="700" fill="${COLORS.green}">
+    ${esc(hero.label)} on Spotify
   </text>
+  <g>
+    <rect x="20" y="46" width="${leftW}" height="200" rx="14" fill="${COLORS.card}" stroke="${COLORS.border}"/>
+    ${heroImg ? `<image href="${heroImg}" x="32" y="60" width="140" height="140" />`
+              : `<rect x="32" y="60" width="140" height="140" fill="#222"/>`}
+    <text x="190" y="98" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="16" fill="${COLORS.text}" font-weight="700">
+      ${esc(ellipsize(hero.title, 36))}
+    </text>
+    <text x="190" y="125" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="13" fill="${COLORS.muted}">
+      ${esc(ellipsize(hero.artist, 40))}
+    </text>
+    ${hero.url ? `<a href="${hero.url}"><rect x="20" y="46" width="${leftW}" height="200" rx="14" fill="transparent"/></a>`:""}
+  </g>
 
-  <!-- Now Playing card -->
-  <rect x="20" y="50" width="290" height="150" rx="12" fill="#181818" />
-  ${albumDataUri ? `<image href="${albumDataUri}" x="32" y="62" width="120" height="120" />`
-                  : `<rect x="32" y="62" width="120" height="120" fill="#222" />`}
-  <text x="166" y="94" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="16" fill="${FG}" font-weight="600">
-    ${esc(now?.title || "Not playing")}
-  </text>
-  <text x="166" y="120" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="13" fill="${MUTED}">
-    ${esc(now?.artist || "—")}
-  </text>
-  ${now?.url ? `<a href="${now.url}"><rect x="20" y="50" width="290" height="150" rx="12" fill="transparent"/></a>` : ""}
-
-  <!-- Top Tracks -->
-  <text x="330" y="32" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="18" fill="${GREEN}" font-weight="700">
+  <!-- Sağ: Top Tracks -->
+  <text x="${col1X}" y="32" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="18" font-weight="700" fill="${COLORS.green}">
     Top Tracks (last month)
   </text>
-  ${topTracks.map((t, i) => {
-    const y = 56 + i * 32;
-    const img = trackDataUris[i] || TRANSPARENT_PNG;
-    return `
-      <g>
-        <image href="${img}" x="330" y="${y - 16}" width="24" height="24" />
-        <text x="360" y="${y}" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="13" fill="${FG}">
-          ${esc(t.title)} — <tspan fill="${MUTED}">${esc(t.artist)}</tspan>
+  <g>
+    <rect x="${col1X-12}" y="46" width="${colW+24}" height="200" rx="12" fill="${COLORS.card}" stroke="${COLORS.border}"/>
+    ${top.tracks.map((t,i)=>{
+      const y = 72 + i*listRow;
+      const img = topTrackImgs[i] || BLANK;
+      return `
+        <image href="${img}" x="${col1X}" y="${y - icon + 4}" width="${icon}" height="${icon}"/>
+        <text x="${col1X + icon + 10}" y="${y}" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="13" fill="${COLORS.text}">
+          ${esc(ellipsize(t.title, 28))} — <tspan fill="${COLORS.muted}">${esc(ellipsize(t.artist, 28))}</tspan>
         </text>
-      </g>
-    `;
-  }).join("")}
+      `;
+    }).join("")}
+  </g>
 
-  <!-- Top Artists -->
-  <text x="620" y="32" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="18" fill="${GREEN}" font-weight="700">
+  <!-- Sağ: Top Artists -->
+  <text x="${col2X}" y="32" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="18" font-weight="700" fill="${COLORS.green}">
     Top Artists (last month)
   </text>
-  ${topArtists.map((a, i) => {
-    const y = 56 + i * 32;
-    const img = artistDataUris[i] || TRANSPARENT_PNG;
-    return `
-      <g>
-        <image href="${img}" x="620" y="${y - 18}" width="26" height="26" />
-        <text x="652" y="${y}" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="13" fill="${FG}">
-          ${esc(a.name)}
+  <g>
+    <rect x="${col2X-12}" y="46" width="${colW+24}" height="200" rx="12" fill="${COLORS.card}" stroke="${COLORS.border}"/>
+    ${top.artists.map((a,i)=>{
+      const y = 72 + i*listRow;
+      const img = topArtistImgs[i] || BLANK;
+      return `
+        <defs>
+          <clipPath id="artist-${i}"><circle cx="${col2X + icon/2}" cy="${y - icon/2 + 4}" r="${icon/2}"/></clipPath>
+        </defs>
+        <image href="${img}" x="${col2X}" y="${y - icon + 4}" width="${icon}" height="${icon}" clip-path="url(#artist-${i})"/>
+        <text x="${col2X + icon + 10}" y="${y}" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="13" fill="${COLORS.text}">
+          ${esc(ellipsize(a.name, 34))}
         </text>
-      </g>
-    `;
-  }).join("")}
+      `;
+    }).join("")}
+  </g>
 </svg>`.trim();
 }
 
-export default async function handler(req, res) {
-  try {
-    if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET || !SPOTIFY_REFRESH_TOKEN) {
-      res.status(500).send("Env vars eksik");
-      return;
-    }
-
+// ===== Handler =====
+export default async function handler(req, res){
+  try{
     const token = await getAccessToken();
-    const [now, top] = await Promise.all([ getNowPlaying(token), getTop(token) ]);
 
-    // Görseller
-    const albumDataUri   = now?.albumImage ? await toDataUri(now.albumImage) : null;
-    const trackDataUris  = await Promise.all((top.topTracks  || []).map(t => t.image ? toDataUri(t.image) : TRANSPARENT_PNG));
-    const artistDataUris = await Promise.all((top.topArtists || []).map(a => a.image ? toDataUri(a.image) : TRANSPARENT_PNG));
+    // 1) Now Playing; yoksa Last Played
+    let hero = await getNowPlaying(token);
+    if(!hero) hero = await getLastPlayed(token);
 
-    const out = svgLayout({
-      now,
-      topTracks: top.topTracks || [],
-      topArtists: top.topArtists || [],
-      albumDataUri,
-      trackDataUris,
-      artistDataUris
-    });
+    // 2) Top lists
+    const top = await getTop(token);
 
-    res.setHeader("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
-    res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
+    // 3) Görselleri data URI’ye çevir
+    const heroImg = hero?.image ? await toDataUri(hero.image) : null;
+    const topTrackImgs  = await Promise.all((top.tracks||[]).map(t => t.image ? toDataUri(t.image) : BLANK));
+    const topArtistImgs = await Promise.all((top.artists||[]).map(a => a.image ? toDataUri(a.image) : BLANK));
+
+    const out = render({ hero: hero || { title:"Not playing", artist:"—", url:null, label:"Now Playing" },
+                         heroImg, topTrackImgs, topArtistImgs, top });
+
+    res.setHeader("Cache-Control","no-cache, no-store, max-age=0, must-revalidate");
+    res.setHeader("Content-Type","image/svg+xml; charset=utf-8");
     res.status(200).send(out);
-  } catch (e) {
-    res.setHeader("Content-Type", "text/plain; charset=utf-8");
-    res.status(500).send("Hata: " + (e?.message || e));
+  }catch(e){
+    res.setHeader("Content-Type","text/plain; charset=utf-8");
+    res.status(500).send("Hata: "+(e?.message||e));
   }
 }

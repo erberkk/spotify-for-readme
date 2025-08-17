@@ -1,4 +1,4 @@
-// api/spotify.js — 3 eşit kutu, ellipsize, Last Played fallback
+// api/spotify.js — 3 eşit kutu, ellipsize, Last Played fallback, sol kart dikey ortalı
 const {
   SPOTIFY_CLIENT_ID,
   SPOTIFY_CLIENT_SECRET,
@@ -104,7 +104,6 @@ async function getTop(token){
 
 // ------- SVG (3 eşit kutu) -------
 function render({ hero, heroImg, top, tImgs, aImgs }){
-  // GitHub profiline rahat sığsın: 960px
   const W = 960, H = 290;
   const margin = 20, gutter = 16;
   const innerW = W - margin*2 - gutter*2;
@@ -117,6 +116,15 @@ function render({ hero, heroImg, top, tImgs, aImgs }){
   const x3 = margin + (cardW + gutter) * 2;
 
   const icon = 24, rowH = 30;
+
+  // --- Sol kart: dikey merkezleme hesapları ---
+  const imgSize = 120;
+  const imgX = x1 + 14;
+  const imgY = topY + (cardH - imgSize) / 2;
+  const textX = imgX + imgSize + 16;
+  const centerY = topY + cardH / 2;
+  const titleY  = centerY - 6;
+  const artistY = centerY + 16;
 
   return `
 <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Spotify Summary">
@@ -133,15 +141,15 @@ function render({ hero, heroImg, top, tImgs, aImgs }){
     Top Artists (last month)
   </text>
 
-  <!-- Card 1: Now/Last -->
+  <!-- Card 1: Now/Last (dikey ortalı) -->
   <g>
     <rect x="${x1}" y="${topY}" width="${cardW}" height="${cardH}" rx="14" fill="${COLORS.card}" stroke="${COLORS.border}"/>
-    ${heroImg ? `<image href="${heroImg}" x="${x1+14}" y="${topY+16}" width="120" height="120"/>`
-              : `<rect x="${x1+14}" y="${topY+16}" width="120" height="120" fill="#222"/>`}
-    <text x="${x1+150}" y="${topY+56}" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="16" fill="${COLORS.text}" font-weight="700">
+    ${heroImg ? `<image href="${heroImg}" x="${imgX}" y="${imgY}" width="${imgSize}" height="${imgSize}"/>`
+              : `<rect x="${imgX}" y="${imgY}" width="${imgSize}" height="${imgSize}" fill="#222"/>`}
+    <text x="${textX}" y="${titleY}" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="16" fill="${COLORS.text}" font-weight="700">
       ${esc(ellipsize(hero.title, 28))}
     </text>
-    <text x="${x1+150}" y="${topY+82}" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="13" fill="${COLORS.muted}">
+    <text x="${textX}" y="${artistY}" font-family="Inter,Segoe UI,Roboto,Arial,sans-serif" font-size="13" fill="${COLORS.muted}">
       ${esc(ellipsize(hero.artist, 30))}
     </text>
     ${hero.url ? `<a href="${hero.url}"><rect x="${x1}" y="${topY}" width="${cardW}" height="${cardH}" rx="14" fill="transparent"/></a>` : ""}

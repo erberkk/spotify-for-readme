@@ -25,7 +25,6 @@ async function getAccessToken() {
     },
     body
   });
-
   if (!res.ok) throw new Error("Token yenileme başarısız");
   const data = await res.json();
   return data.access_token;
@@ -35,23 +34,20 @@ async function getNowPlaying(token) {
   const r = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
     headers: { Authorization: `Bearer ${token}` }
   });
-
   if (r.status === 204 || !r.ok) return null;
   const data = await r.json();
   const item = data?.item;
   if (!item) return null;
-
   return {
     title: item.name,
     artist: item.artists?.map(a => a.name).join(", "),
     url: item.external_urls?.spotify,
-    albumImage: item.album?.images?.[0]?.url || null,
+    albumImage: item.album?.images?.[0]?.url || null, // en büyük
     isPlaying: data.is_playing === true
   };
 }
 
 async function getTop(token) {
-  // son 1 ay: short_term
   const [tracksRes, artistsRes] = await Promise.all([
     fetch("https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5", {
       headers: { Authorization: `Bearer ${token}` }
@@ -67,46 +63,42 @@ async function getTop(token) {
   const topTracks = (tracksJson.items || []).map(t => ({
     title: t.name,
     artist: t.artists?.map(a => a.name).join(", "),
-    image: t.album?.images?.[2]?.url || t.album?.images?.[0]?.url || null // küçük görsel
+    image: t.album?.images?.[2]?.url || t.album?.images?.[1]?.url || t.album?.images?.[0]?.url || null
   }));
 
   const topArtists = (artistsJson.items || []).map(a => ({
     name: a.name,
-    image: a.images?.[2]?.url || a.images?.[0]?.url || null
+    image: a.images?.[2]?.url || a.images?.[1]?.url || a.images?.[0]?.url || null
   }));
 
   return { topTracks, topArtists };
 }
 
-// Görseli data URI (base64) yap
+// 1x1 şeffaf PNG (placeholder)
+const TRANSPARENT_PNG =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAuMBgV3QJRoAAAAASUVORK5CYII=";
+
+// Görseli data URI (base64) yap – header ekleyip sağlamla
 async function toDataUri(url) {
-  if (!url) return null;
-  const r = await fetch(url);
-  if (!r.ok) return null;
-  const buf = Buffer.from(await r.arrayBuffer());
-  const mime = r.headers.get("content-type") || "image/jpeg";
-  return `data:${mime};base64,${buf.toString("base64")}`;
+  if (!url) return TRANSPARENT_PNG;
+  try {
+    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!r.ok) return TRANSPARENT_PNG;
+    const buf = Buffer.from(await r.arrayBuffer());
+    const mime = r.headers.get("content-type") || "image/jpeg";
+    return `data:${mime};base64,${buf.toString("base64")}`;
+  } catch {
+    return TRANSPARENT_PNG;
+  }
 }
 
 function esc(s) {
   return (s || "—").replace(/&/g, "&amp;").replace(/</g, "&lt;");
 }
 
-function circleImage(id, x, y, size) {
-  const r = size / 2;
-  return `
-  <defs>
-    <clipPath id="${id}">
-      <circle cx="${x + r}" cy="${y + r}" r="${r}" />
-    </clipPath>
-  </defs>
-  <image href="" x="${x}" y="${y}" width="${size}" height="${size}" clip-path="url(#${id})" id="${id}-img" />
-`.trim();
-}
-
 function svgLayout({ now, topTracks, topArtists, albumDataUri, trackDataUris, artistDataUris }) {
-  // Boyutlar
   const W = 900, H = 220;
+
   return `
 <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Spotify Summary">
   <rect width="100%" height="100%" fill="${BG}"/>
@@ -134,11 +126,10 @@ function svgLayout({ now, topTracks, topArtists, albumDataUri, trackDataUris, ar
   </text>
   ${topTracks.map((t, i) => {
     const y = 56 + i * 32;
-    const img = trackDataUris[i];
+    const img = trackDataUris[i] || TRANSPARENT_PNG;
     return `
       <g>
-        ${img ? `<image href="${img}" x="330" y="${y - 16}" width="24" height="24"/>`
-               : `<rect x="330" y="${y - 16}" width="24" height="24" fill="#222"/>`}
+        <image href="${img}" x="330" y="${y - 16}" width="24" height="24" />
         <text x="360" y="${y}" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="13" fill="${FG}">
           ${esc(t.title)} — <tspan fill="${MUTED}">${esc(t.artist)}</tspan>
         </text>
@@ -152,11 +143,10 @@ function svgLayout({ now, topTracks, topArtists, albumDataUri, trackDataUris, ar
   </text>
   ${topArtists.map((a, i) => {
     const y = 56 + i * 32;
-    const img = artistDataUris[i];
+    const img = artistDataUris[i] || TRANSPARENT_PNG;
     return `
       <g>
-        ${img ? `<image href="${img}" x="620" y="${y - 18}" width="26" height="26" clip-path="circle(13px at 633px ${y - 5}px)"/>`
-               : `<rect x="620" y="${y - 18}" width="26" height="26" fill="#222"/>`}
+        <image href="${img}" x="620" y="${y - 18}" width="26" height="26" />
         <text x="652" y="${y}" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="13" fill="${FG}">
           ${esc(a.name)}
         </text>
@@ -174,23 +164,14 @@ export default async function handler(req, res) {
     }
 
     const token = await getAccessToken();
+    const [now, top] = await Promise.all([ getNowPlaying(token), getTop(token) ]);
 
-    // Verileri paralel topla
-    const [now, top] = await Promise.all([
-      getNowPlaying(token),
-      getTop(token)
-    ]);
+    // Görseller
+    const albumDataUri   = now?.albumImage ? await toDataUri(now.albumImage) : null;
+    const trackDataUris  = await Promise.all((top.topTracks  || []).map(t => t.image ? toDataUri(t.image) : TRANSPARENT_PNG));
+    const artistDataUris = await Promise.all((top.topArtists || []).map(a => a.image ? toDataUri(a.image) : TRANSPARENT_PNG));
 
-    // Görselleri base64 yap
-    const albumDataUri = now?.albumImage ? await toDataUri(now.albumImage) : null;
-    const trackDataUris = await Promise.all(
-      (top.topTracks || []).map(t => t.image ? toDataUri(t.image) : null)
-    );
-    const artistDataUris = await Promise.all(
-      (top.topArtists || []).map(a => a.image ? toDataUri(a.image) : null)
-    );
-
-    const svg = svgLayout({
+    const out = svgLayout({
       now,
       topTracks: top.topTracks || [],
       topArtists: top.topArtists || [],
@@ -201,7 +182,7 @@ export default async function handler(req, res) {
 
     res.setHeader("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
     res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
-    res.status(200).send(svg);
+    res.status(200).send(out);
   } catch (e) {
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.status(500).send("Hata: " + (e?.message || e));

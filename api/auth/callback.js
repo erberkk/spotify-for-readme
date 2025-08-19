@@ -112,9 +112,6 @@ export default async function handler(req, res) {
       created_at: Date.now()
     });
 
-    // No expiration - tokens will stay forever
-    // await redis.expire(userKey, 60 * 60 * 24 * 30);
-
     // Success page with instructions
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.status(200).send(`
@@ -132,9 +129,45 @@ export default async function handler(req, res) {
               min-height: 100vh;
               box-sizing: border-box;
             }
+            .header {
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+              padding: 20px;
+              display: flex;
+              justify-content: flex-end;
+              z-index: 100;
+            }
+            .language-switcher {
+              background: rgba(22, 24, 29, 0.8);
+              border: 2px solid #2a2d35;
+              border-radius: 25px;
+              padding: 8px 16px;
+              display: flex;
+              gap: 10px;
+              backdrop-filter: blur(10px);
+            }
+            .lang-btn {
+              background: none;
+              border: none;
+              color: #9ca3af;
+              cursor: pointer;
+              padding: 5px 10px;
+              border-radius: 15px;
+              transition: all 0.3s ease;
+              font-size: 14px;
+            }
+            .lang-btn.active {
+              background: #1ed760;
+              color: #000;
+            }
+            .lang-btn:hover:not(.active) {
+              color: #ffffff;
+            }
             .container {
               max-width: 600px;
-              margin: 0 auto;
+              margin: 80px auto 0;
               background: #16181d;
               border-radius: 20px;
               padding: 40px;
@@ -192,41 +225,77 @@ export default async function handler(req, res) {
           </style>
         </head>
         <body>
+          <header class="header">
+            <div class="language-switcher">
+              <button class="lang-btn active" data-lang="tr">🇹🇷 TR</button>
+              <button class="lang-btn" data-lang="en">🇺🇸 EN</button>
+            </div>
+          </header>
+
           <div class="container">
-            <h1>🎉 Successfully Connected!</h1>
-            <p>Your Spotify account has been linked successfully.</p>
+            <h1 data-tr="🎉 Başarıyla Bağlandı!" data-en="🎉 Successfully Connected!">🎉 Başarıyla Bağlandı!</h1>
+            <p data-tr="Spotify hesabınız başarıyla bağlandı." data-en="Your Spotify account has been linked successfully.">Spotify hesabınız başarıyla bağlandı.</p>
             
             <div class="username">
-              Username: ${username}
+              <span data-tr="Kullanıcı Adı:" data-en="Username:">Kullanıcı Adı:</span> ${username}
             </div>
             
-            <h3>🔗 Your Personal Widget URL:</h3>
+            <h3 data-tr="🔗 Kişisel Widget URL'iniz:" data-en="🔗 Your Personal Widget URL:">🔗 Kişisel Widget URL'iniz:</h3>
             <div class="url-example" id="widgetUrl">
 [![Spotify Summary](https://spotify-for-readme-pi.vercel.app/api/spotify/${username})](${userProfile.external_urls?.spotify || `https://open.spotify.com/user/${username}`})
             </div>
-            <button class="copy-btn" onclick="copyToClipboard()">📋 Copy Markdown</button>
+            <button class="copy-btn" onclick="copyToClipboard()" data-tr="📋 Markdown Kopyala" data-en="📋 Copy Markdown">📋 Markdown Kopyala</button>
             
             <div class="info">
-              💡 <strong>How to use:</strong><br>
-              1. Copy the markdown code above<br>
-              2. Paste it into your GitHub profile README.md<br>
-              3. Your Spotify activity will now be displayed!<br><br>
+              💡 <strong data-tr="Nasıl kullanılır:" data-en="How to use:">Nasıl kullanılır:</strong><br>
+              <span data-tr="1. Yukarıdaki markdown kodunu kopyalayın<br>2. GitHub profil README.md dosyanıza yapıştırın<br>3. Spotify aktiviteniz artık görünecek!" data-en="1. Copy the markdown code above<br>2. Paste it into your GitHub profile README.md<br>3. Your Spotify activity will now be displayed!">1. Yukarıdaki markdown kodunu kopyalayın<br>2. GitHub profil README.md dosyanıza yapıştırın<br>3. Spotify aktiviteniz artık görünecek!</span><br><br>
             </div>
             
             <p><a href="${userProfile.external_urls?.spotify || `https://open.spotify.com/user/${username}`}" 
-                  style="color: #1ed760; text-decoration: none;">
-                🎧 Open Your Spotify Profile
+                  style="color: #1ed760; text-decoration: none;" data-tr="🎧 Spotify Profilinizi Açın" data-en="🎧 Open Your Spotify Profile">
+                🎧 Spotify Profilinizi Açın
               </a></p>
           </div>
           
           <script>
+            // Language switching functionality
+            const langBtns = document.querySelectorAll('.lang-btn');
+            const elements = document.querySelectorAll('[data-tr][data-en]');
+            
+            function switchLanguage(lang) {
+              elements.forEach(element => {
+                const text = lang === 'tr' ? element.getAttribute('data-tr') : element.getAttribute('data-en');
+                if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+                  element.placeholder = text;
+                } else {
+                  element.innerHTML = text;
+                }
+              });
+              
+              // Update active button
+              langBtns.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-lang') === lang) {
+                  btn.classList.add('active');
+                }
+              });
+            }
+            
+            langBtns.forEach(btn => {
+              btn.addEventListener('click', () => {
+                const lang = btn.getAttribute('data-lang');
+                switchLanguage(lang);
+              });
+            });
+
             function copyToClipboard() {
               const url = document.getElementById('widgetUrl').textContent;
               navigator.clipboard.writeText(url).then(() => {
                 const btn = document.querySelector('.copy-btn');
-                btn.textContent = '✅ Copied!';
+                const lang = document.querySelector('.lang-btn.active').getAttribute('data-lang');
+                btn.textContent = lang === 'tr' ? '✅ Kopyalandı!' : '✅ Copied!';
                 setTimeout(() => {
-                  btn.textContent = '📋 Copy Markdown';
+                  btn.textContent = lang === 'tr' ? '📋 Markdown Kopyala' : '📋 Copy Markdown';
                 }, 2000);
               });
             }

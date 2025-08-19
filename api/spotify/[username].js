@@ -341,10 +341,11 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
             class="particle" style="animation-delay: ${p.delay}"/>
   `).join('')}
 
-  <!-- Main title with username -->
-  <text x="${margin}" y="32" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
+  <!-- Spotify logo and title -->
+  <image x="${margin}" y="8" width="24" height="24" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTIiIGZpbGw9IiMxRUQ3NjAiLz4KPHBhdGggZD0iTTE3LjMgMTAuMkMxNCA4LjggMTAuMiA4LjIgOC4xIDkuNkM3LjggOS44IDcuNCA5LjcgNy4yIDkuNEM3IDkuMSA3LjEgOC43IDcuNCA4LjVDOS45IDcuMSAxNC4zIDcuNyAxOC4yIDkuNEMxOC41IDkuNiAxOC42IDEwIDE4LjQgMTAuM0MxOC4yIDEwLjYgMTcuNiAxMC40IDE3LjMgMTAuMlpNMTcuMSAxMy4xQzE0LjIgMTEuOSAxMC44IDExLjQgOC45IDEyLjZDOC43IDEyLjcgOC40IDEyLjYgOC4zIDEyLjRDOC4yIDEyLjIgOC4zIDExLjkgOC41IDExLjhDMTAuNyAxMC41IDE0LjQgMTEgMTcuNiAxMi4zQzE3LjggMTIuNCAxNy45IDEyLjcgMTcuOCAxMi45QzE3LjcgMTMuMSAxNy4zIDEzLjIgMTcuMSAxMy4xWk0xNi43IDE1LjhDMTQuMiAxNC43IDExLjMgMTQuMyA5LjcgMTUuM0M5LjUgMTUuNCA5LjMgMTUuMyA5LjIgMTUuMUM5LjEgMTQuOSA5LjIgMTQuNyA5LjQgMTQuNkMxMS4yIDEzLjUgMTQuNCAxNCA3IDE1LjJDMTcuMiAxNS4zIDE3LjMgMTUuNSAxNy4yIDE1LjdDMTcuMSAxNS45IDE2LjkgMTYgMTYuNyAxNS44WiIgZmlsbD0iYmxhY2siLz4KPC9zdmc+Cg==" class="fade-in"/>
+  <text x="${margin + 32}" y="28" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
         font-size="24" font-weight="800" fill="url(#greenGrad)" class="glow-text fade-in">
-    ${esc(username)} • Spotify
+    Spotify
   </text>
 
   <!-- Card titles -->
@@ -645,12 +646,13 @@ export default async function handler(req, res) {
     // 4) Render
     const svg = render({ hero, heroImg, top, tImgs, aImgs, username });
 
-    // Cache headers
-    res.setHeader("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
-    res.setHeader("CDN-Cache-Control", "no-store");
-    res.setHeader("Vercel-CDN-Cache-Control", "no-store");
+    // Cache headers - Short cache for real-time updates
+    res.setHeader("Cache-Control", "public, max-age=30, s-maxage=30");
+    res.setHeader("CDN-Cache-Control", "max-age=30");
+    res.setHeader("Vercel-CDN-Cache-Control", "max-age=30");
     res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Refresh", "30");
 
     res.status(200).send(svg);
   } catch (e) {

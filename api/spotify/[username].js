@@ -327,6 +327,15 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
         filter: brightness(1.1);
         transform: translateY(-2px);
       }
+      
+      /* Hover effects for clickable items */
+      rect[style*="cursor: pointer"]:hover {
+        fill: rgba(30, 215, 96, 0.1) !important;
+      }
+      
+      a:hover rect {
+        fill: rgba(30, 215, 96, 0.1) !important;
+      }
     </style>
   </defs>
 
@@ -342,7 +351,6 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
   `).join('')}
 
   <!-- Spotify logo and title -->
-  <image x="${margin}" y="8" width="24" height="24" href="https://spotify-for-readme-pi.vercel.app/Spotify.png" class="fade-in"/>
   <text x="${margin + 32}" y="28" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
         font-size="24" font-weight="800" fill="url(#greenGrad)" class="glow-text fade-in">
     Spotify
@@ -377,8 +385,13 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
 
   <!-- Card 1: Now Playing/Paused/Last -->
   <g class="card-hover fade-in">
+    ${hero.url ? `<a href="${hero.url}" target="_blank">` : ''}
     <rect x="${x1}" y="${topY}" width="${cardW}" height="${cardH}" rx="16" 
-          fill="url(#cardGrad)" stroke="${COLORS.border}" stroke-width="2" filter="url(#shadow)"/>
+          fill="url(#cardGrad)" stroke="${COLORS.border}" stroke-width="2" filter="url(#shadow)"
+          style="cursor: ${hero.url ? 'pointer' : 'default'}">
+      <title>${hero.url ? 'Tıklayın - Spotify\'da dinleyin' : esc(hero.title) + ' - ' + esc(hero.artist)}</title>
+    </rect>
+    ${hero.url ? `</a>` : ''}
     
     <!-- Album art (Static - No Rotation) -->
     ${heroImg ? 
@@ -457,6 +470,13 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
       
       return `
         <g class="slide-up" style="animation-delay: ${i * 0.1}s">
+          ${t.url ? `<a href="${t.url}" target="_blank">` : ''}
+          <rect x="${x2 + 8}" y="${itemY}" width="${cardW - 16}" height="${listItemHeight - 4}" rx="8" 
+                fill="transparent" style="cursor: ${t.url ? 'pointer' : 'default'}">
+            <title>${t.url ? 'Tıklayın - Spotify\'da dinleyin' : esc(t.name) + ' - ' + esc(t.artist)}</title>
+          </rect>
+          ${t.url ? `</a>` : ''}
+          
           <!-- Rank number -->
           <text x="${x2 + 16}" y="${centerY + 6}" text-anchor="middle" 
                 font-family="SF Pro Display,Inter,system-ui,sans-serif" font-size="16" font-weight="800" 
@@ -503,6 +523,13 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
       
       return `
         <g class="slide-up" style="animation-delay: ${i * 0.1}s">
+          ${a.url ? `<a href="${a.url}" target="_blank">` : ''}
+          <rect x="${x3 + 8}" y="${itemY}" width="${cardW - 16}" height="${listItemHeight - 4}" rx="8" 
+                fill="transparent" style="cursor: ${a.url ? 'pointer' : 'default'}">
+            <title>${a.url ? 'Tıklayın - Spotify\'da dinleyin' : esc(a.name)}</title>
+          </rect>
+          ${a.url ? `</a>` : ''}
+          
           <!-- Rank number -->
           <text x="${x3 + 16}" y="${centerY + 6}" text-anchor="middle" 
                 font-family="SF Pro Display,Inter,system-ui,sans-serif" font-size="16" font-weight="800" 
@@ -663,13 +690,14 @@ export default async function handler(req, res) {
     // 4) Render
     const svg = render({ hero, heroImg, top, tImgs, aImgs, username });
 
-    // Cache headers - Short cache for real-time updates
-    res.setHeader("Cache-Control", "public, max-age=30, s-maxage=30");
-    res.setHeader("CDN-Cache-Control", "max-age=30");
-    res.setHeader("Vercel-CDN-Cache-Control", "max-age=30");
+    // Cache headers - Real-time updates
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.setHeader("CDN-Cache-Control", "no-store");
+    res.setHeader("Vercel-CDN-Cache-Control", "no-store");
     res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Refresh", "30");
 
     res.status(200).send(svg);
   } catch (e) {

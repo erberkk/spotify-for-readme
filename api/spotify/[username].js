@@ -352,7 +352,7 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
 
   <!-- Spotify logo and title -->
   <a href="https://open.spotify.com/user/${username}" target="_blank">
-    <text x="0" y="28" text-anchor="start" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
+    <text x="10" y="28" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
           font-size="24" font-weight="800" fill="url(#greenGrad)" class="glow-text fade-in"
           style="cursor: pointer">
       <title>Spotify Profiline Git</title>

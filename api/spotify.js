@@ -1,4 +1,4 @@
-// api/spotify.js — Enhanced Spotify Widget (Fixed Layout)
+// api/spotify.js — Enhanced Spotify Widget (Clean Title + Particle Effects)
 const {
   SPOTIFY_CLIENT_ID,
   SPOTIFY_CLIENT_SECRET,
@@ -181,6 +181,16 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
   const listItemHeight = 40;
   const iconSize = 28;
 
+  // Particle sistem için koordinatlar
+  const particles = [
+    { x: W * 0.75, y: H * 0.25, size: 8, delay: '0s' },
+    { x: W * 0.85, y: H * 0.4, size: 6, delay: '2s' },
+    { x: W * 0.7, y: H * 0.6, size: 10, delay: '4s' },
+    { x: W * 0.9, y: H * 0.15, size: 5, delay: '1s' },
+    { x: W * 0.65, y: H * 0.8, size: 7, delay: '3s' },
+    { x: W * 0.8, y: H * 0.7, size: 9, delay: '5s' }
+  ];
+
   return `
 <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Spotify Summary">
   <defs>
@@ -240,6 +250,29 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
         50% { opacity: 0.7; }
       }
       
+      @keyframes float {
+        0%, 100% { 
+          transform: translate(0, 0) scale(1);
+          opacity: 0.6;
+        }
+        25% { 
+          transform: translate(15px, -20px) scale(1.2);
+          opacity: 0.8;
+        }
+        50% { 
+          transform: translate(30px, -10px) scale(0.8);
+          opacity: 1;
+        }
+        75% { 
+          transform: translate(20px, 15px) scale(1.1);
+          opacity: 0.7;
+        }
+      }
+      
+      .particle {
+        animation: float 8s infinite ease-in-out;
+      }
+      
       .card-hover {
         transition: all 0.3s ease;
       }
@@ -254,14 +287,18 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
   <!-- Background -->
   <rect width="100%" height="100%" fill="url(#bgGrad)"/>
   
-  <!-- Ambient lighting effects -->
-  <circle cx="${W*0.2}" cy="${H*0.3}" r="100" fill="${COLORS.greenGlow}" opacity="0.1" class="pulse"/>
-  <circle cx="${W*0.8}" cy="${H*0.7}" r="80" fill="${COLORS.accent}30" opacity="0.08" class="pulse"/>
+  <!-- Floating Particles (Sağ tarafta küçük parçacıklar) -->
+  ${particles.map((p, i) => `
+    <circle cx="${p.x}" cy="${p.y}" r="${p.size}" fill="${COLORS.green}" opacity="0.15" 
+            class="particle" style="animation-delay: ${p.delay}"/>
+    <circle cx="${p.x}" cy="${p.y}" r="${p.size/2}" fill="${COLORS.accent}" opacity="0.3" 
+            class="particle" style="animation-delay: ${p.delay}"/>
+  `).join('')}
 
-  <!-- Main title with glow -->
+  <!-- Main title (Müzik ikonu kaldırıldı) -->
   <text x="${margin}" y="32" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
         font-size="24" font-weight="800" fill="url(#greenGrad)" class="glow-text fade-in">
-    🎵 Spotify Dashboard
+    Spotify Dashboard
   </text>
 
   <!-- Card titles -->
@@ -278,7 +315,7 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
     ⭐ Top Artists
   </text>
 
-  <!-- Card 1: Now Playing/Paused/Last (Fixed - No Rotation) -->
+  <!-- Card 1: Now Playing/Paused/Last -->
   <g class="card-hover fade-in">
     <rect x="${x1}" y="${topY}" width="${cardW}" height="${cardH}" rx="16" 
           fill="url(#cardGrad)" stroke="${COLORS.border}" stroke-width="2" filter="url(#shadow)"/>
@@ -333,7 +370,7 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
     }
   </g>
 
-  <!-- Card 2: Top Tracks (Fixed Alignment) -->
+  <!-- Card 2: Top Tracks -->
   <g class="card-hover fade-in">
     <rect x="${x2}" y="${topY}" width="${cardW}" height="${cardH}" rx="16" 
           fill="url(#cardGrad)" stroke="${COLORS.border}" stroke-width="2" filter="url(#shadow)"/>
@@ -379,7 +416,7 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
     }).join("")}
   </g>
 
-  <!-- Card 3: Top Artists (Fixed Alignment) -->
+  <!-- Card 3: Top Artists -->
   <g class="card-hover fade-in">
     <rect x="${x3}" y="${topY}" width="${cardW}" height="${cardH}" rx="16" 
           fill="url(#cardGrad)" stroke="${COLORS.border}" stroke-width="2" filter="url(#shadow)"/>

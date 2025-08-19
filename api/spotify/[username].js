@@ -13,8 +13,27 @@ async function getRedisClient() {
     redisClient = createClient({
       url: REDIS_URL,
       socket: {
-        tls: false
+        tls: false,
+        connectTimeout: 60000,
+        commandTimeout: 5000
+      },
+      retry_strategy: (options) => {
+        if (options.error && options.error.code === 'ECONNREFUSED') {
+          return new Error('The server refused the connection');
+        }
+        if (options.total_retry_time > 1000 * 60 * 60) {
+          return new Error('Retry time exhausted');
+        }
+        if (options.attempt > 10) {
+          return undefined;
+        }
+        return Math.min(options.attempt * 100, 3000);
       }
+    });
+    
+    redisClient.on('error', (err) => {
+      console.error('Redis Client Error:', err);
+      redisClient = null; // Reset client on error
     });
     
     await redisClient.connect();
@@ -106,7 +125,8 @@ async function getAccessToken(username) {
       Authorization: `Basic ${auth}`, 
       "Content-Type": "application/x-www-form-urlencoded" 
     },
-    body
+    body,
+    signal: AbortSignal.timeout(10000) // 10 second timeout
   });
   
   if (!res.ok) {
@@ -126,7 +146,8 @@ async function getAccessToken(username) {
 // ------- Spotify API -------
 async function getNowPlaying(token) {
   const r = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(8000) // 8 second timeout
   });
   if (r.status === 204 || !r.ok) return null;
   
@@ -147,7 +168,8 @@ async function getNowPlaying(token) {
 
 async function getLastPlayed(token) {
   const r = await fetch("https://api.spotify.com/v1/me/player/recently-played?limit=1", {
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(8000) // 8 second timeout
   });
   if (!r.ok) return null;
   
@@ -166,10 +188,12 @@ async function getLastPlayed(token) {
 async function getTop(token) {
   const [trRes, arRes] = await Promise.all([
     fetch("https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5", { 
-      headers: { Authorization: `Bearer ${token}` } 
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(8000) // 8 second timeout
     }),
     fetch("https://api.spotify.com/v1/me/top/artists?time_range=short_term&limit=5", { 
-      headers: { Authorization: `Bearer ${token}` } 
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(8000) // 8 second timeout
     })
   ]);
   
@@ -352,7 +376,7 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
 
   <!-- Spotify logo and title -->
   <a href="https://open.spotify.com/user/${username}" target="_blank">
-    <text x="10" y="28" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
+    <text x="0" y="28" text-anchor="start" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
           font-size="24" font-weight="800" fill="url(#greenGrad)" class="glow-text fade-in"
           style="cursor: pointer">
       <title>Spotify Profiline Git</title>

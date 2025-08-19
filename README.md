@@ -59,4 +59,4 @@ You're all set! To display the Spotify card on your profile, add the following m
 ```
 
 ## Result
-<img width="887" height="340" alt="image" src="https://github.com/user-attachments/assets/55d66f1f-fe01-46c0-a691-bba52473255f" />
+<img width="995" height="348" alt="image" src="https://github.com/user-attachments/assets/7cfe119d-f3da-4bc4-abbf-8dce4f97a3b4" />

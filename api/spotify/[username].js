@@ -342,21 +342,30 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
   `).join('')}
 
   <!-- Spotify logo and title -->
-  <image x="${margin}" y="8" width="24" height="24" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTIiIGZpbGw9IiMxRUQ3NjAiLz4KPHBhdGggZD0iTTE3LjMgMTAuMkMxNCA4LjggMTAuMiA4LjIgOC4xIDkuNkM3LjggOS44IDcuNCA5LjcgNy4yIDkuNEM3IDkuMSA3LjEgOC43IDcuNCA4LjVDOS45IDcuMSAxNC4zIDcuNyAxOC4yIDkuNEMxOC41IDkuNiAxOC42IDEwIDE4LjQgMTAuM0MxOC4yIDEwLjYgMTcuNiAxMC40IDE3LjMgMTAuMlpNMTcuMSAxMy4xQzE0LjIgMTEuOSAxMC44IDExLjQgOC45IDEyLjZDOC43IDEyLjcgOC40IDEyLjYgOC4zIDEyLjRDOC4yIDEyLjIgOC4zIDExLjkgOC41IDExLjhDMTAuNyAxMC41IDE0LjQgMTEgMTcuNiAxMi4zQzE3LjggMTIuNCAxNy45IDEyLjcgMTcuOCAxMi45QzE3LjcgMTMuMSAxNy4zIDEzLjIgMTcuMSAxMy4xWk0xNi43IDE1LjhDMTQuMiAxNC43IDExLjMgMTQuMyA5LjcgMTUuM0M5LjUgMTUuNCA5LjMgMTUuMyA5LjIgMTUuMUM5LjEgMTQuOSA5LjIgMTQuNyA5LjQgMTQuNkMxMS4yIDEzLjUgMTQuNCAxNCA3IDE1LjJDMTcuMiAxNS4zIDE3LjMgMTUuNSAxNy4yIDE1LjdDMTcuMSAxNS45IDE2LjkgMTYgMTYuNyAxNS44WiIgZmlsbD0iYmxhY2siLz4KPC9zdmc+Cg==" class="fade-in"/>
+  <image x="${margin}" y="8" width="24" height="24" href="/Spotify.png" class="fade-in"/>
   <text x="${margin + 32}" y="28" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
         font-size="24" font-weight="800" fill="url(#greenGrad)" class="glow-text fade-in">
     Spotify
   </text>
 
   <!-- Card titles -->
-  <text x="${x2 + 8}" y="52" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
-        font-size="16" font-weight="600" fill="${COLORS.text}" class="slide-up">
-    🔥 Top Tracks
-  </text>
-  <text x="${x3 + 8}" y="52" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
-        font-size="16" font-weight="600" fill="${COLORS.text}" class="slide-up">
-    ⭐ Top Artists
-  </text>
+  <g class="slide-up">
+    <!-- Top Tracks icon and text -->
+    <image x="${x2 + 8}" y="28" width="20" height="20" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjRweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSIyNHB4IiBmaWxsPSIjZTNlM2UzIj48cGF0aCBkPSJNODUyLTIxMiA3MzItMzMybDU2LTU2IDEyMCAxMjAtNTYgNTZaTTcwOC02OTJsLTU2LTU2IDEyMC0xMjAgNTYgNTYtMTIwIDEyMFpNNDUyLTY5MkwxMzItODEybDU2LTU2IDEyMCAxMjAtNTYgNTZaTTEwOC0yMTJsLTU2LTU2IDEyMC0xMjAgNTYgNTYtMTIwIDEyMFpNMjMzLTEyMGw2NS0yODFMODAtNTkwbDI4OC0yNSAxMTItMjY1IDExMiAyNjUgMjg4IDI1LTIxOCAxODkgNjUgMjgxLTI0Ny0xNDktMjQ3IDE0OVptMjQ3LTM2MVoiLz48L3N2Zz4=" class="fade-in"/>
+    <text x="${x2 + 32}" y="44" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
+          font-size="16" font-weight="600" fill="${COLORS.text}">
+      Top Tracks
+    </text>
+  </g>
+  
+  <g class="slide-up">
+    <!-- Top Artists icon and text -->
+    <image x="${x3 + 8}" y="28" width="20" height="20" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjRweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSIyNHB4IiBmaWxsPSIjZTNlM2UzIj48cGF0aCBkPSJNNzQwLTU2MGgxNDB2ODBoLTgwdjIyMHEwIDQyLTI5IDcxdC03MSAyOXEtNDIgMC03MS0yOXQtMjktNzFxMC00MiAyOS03MXQ3MS0yOXE4IDAgMTggMS41dDIyIDYuNXYtMjA4Wk0xMjAtMTYwdi0xMTJxMC0zNSAxNy41LTYzdDQ2LjUtNDNxNjItMzEgMTI2LTQ2LjVUMTQ0MC00NDBxNDIgMCA4My41IDYuNVQ2MDctNDE0cS0yMCAxMi0zNiAyOXQtMjggMzdxLTI2LTYtNTEuNS05dC01MS41LTMtcTU3IDAtMTEyIDE0dC0xMDggNDBxLTkgNS0xNC41IDE0dC01LjUgMjB2MzJoMzIxcTIwIDkuNSA0MHQyMC41IDQwSDEyMFptMzIwLTMyMHEtNjYgMC0xMTMtNDd0LTQ3LTExM3EwLTY2IDQ3LTExM3QxMTMtNDdxNjYgMCAxMTMgNDd0NDcgMTEzcTAgNjYtNDcgMTEzdC0xMTMgNDdaTTQ0MC04MHEzMyAwIDU2LjUtMjMuNVQ1MjAtNjQwcTAtMzMtMjMuNS01Ni41VDQ0MC03MjBxLTMzIDAtNTYuNSAyMy41VDM2MC02NDBxMCAzMyAyMy41IDU2LjVUNDQwLTU2MFptMC04MFptMCA0MDBaIi8+PC9zdmc+" class="fade-in"/>
+    <text x="${x3 + 32}" y="44" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
+          font-size="16" font-weight="600" fill="${COLORS.text}">
+      Top Artists
+    </text>
+  </g>
 
   <!-- Card 1: Now Playing/Paused/Last -->
   <g class="card-hover fade-in">

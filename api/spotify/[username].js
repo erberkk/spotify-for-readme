@@ -59,6 +59,10 @@ function smartEllipsize(text, maxWidth, fontSize = 14, fontWeight = 'normal') {
 
 const BLANK = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAuMBgV3QJRoAAAAASUVORK5CYII=";
 
+const baseUrl = process.env.VERCEL_URL 
+  ? `https://${process.env.VERCEL_URL}` 
+  : "http://localhost:3000";
+
 async function toDataUri(url) {
   if (!url) return BLANK;
   try {
@@ -342,7 +346,7 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
   `).join('')}
 
   <!-- Spotify logo and title -->
-  <image x="${margin}" y="8" width="24" height="24" href="/Spotify.png" class="fade-in"/>
+  <image x="${margin}" y="8" width="24" height="24" href="${baseUrl}/Spotify.png" class="fade-in"/>
   <text x="${margin + 32}" y="28" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
         font-size="24" font-weight="800" fill="url(#greenGrad)" class="glow-text fade-in">
     Spotify
@@ -351,7 +355,11 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
   <!-- Card titles -->
   <g class="slide-up">
     <!-- Top Tracks icon and text -->
-    <image x="${x2 + 8}" y="28" width="20" height="20" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjRweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSIyNHB4IiBmaWxsPSIjZTNlM2UzIj48cGF0aCBkPSJNODUyLTIxMiA3MzItMzMybDU2LTU2IDEyMCAxMjAtNTYgNTZaTTcwOC02OTJsLTU2LTU2IDEyMC0xMjAgNTYgNTYtMTIwIDEyMFpNNDUyLTY5MkwxMzItODEybDU2LTU2IDEyMCAxMjAtNTYgNTZaTTEwOC0yMTJsLTU2LTU2IDEyMC0xMjAgNTYgNTYtMTIwIDEyMFpNMjMzLTEyMGw2NS0yODFMODAtNTkwbDI4OC0yNSAxMTItMjY1IDExMiAyNjUgMjg4IDI1LTIxOCAxODkgNjUgMjgxLTI0Ny0xNDktMjQ3IDE0OVptMjQ3LTM2MVoiLz48L3N2Zz4=" class="fade-in"/>
+    <g x="${x2 + 8}" y="28">
+      <svg x="${x2 + 8}" y="28" width="20" height="20" viewBox="0 -960 960 960" fill="#FFFFFF">
+        <path d="M852-212 732-332l56-56 120 120-56 56ZM708-692l-56-56 120-120 56 56-120 120Zm-456 0L132-812l56-56 120 120-56 56ZM108-212l-56-56 120-120 56 56-120 120Zm246-75 126-76 126 77-33-144 111-96-146-13-58-136-58 135-146 13 111 97-33 143ZM233-120l65-281L80-590l288-25 112-265 112 265 288 25-218 189 65 281-247-149-247 149Zm247-361Z"/>
+      </svg>
+    </g>
     <text x="${x2 + 32}" y="44" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
           font-size="16" font-weight="600" fill="${COLORS.text}">
       Top Tracks
@@ -360,7 +368,11 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
   
   <g class="slide-up">
     <!-- Top Artists icon and text -->
-    <image x="${x3 + 8}" y="28" width="20" height="20" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjRweCIgdmlld0JveD0iMCAtOTYwIDk2MCA5NjAiIHdpZHRoPSIyNHB4IiBmaWxsPSIjZTNlM2UzIj48cGF0aCBkPSJNNzQwLTU2MGgxNDB2ODBoLTgwdjIyMHEwIDQyLTI5IDcxdC03MSAyOXEtNDIgMC03MS0yOXQtMjktNzFxMC00MiAyOS03MXQ3MS0yOXE4IDAgMTggMS41dDIyIDYuNXYtMjA4Wk0xMjAtMTYwdi0xMTJxMC0zNSAxNy41LTYzdDQ2LjUtNDNxNjItMzEgMTI2LTQ2LjVUMTQ0MC00NDBxNDIgMCA4My41IDYuNVQ2MDctNDE0cS0yMCAxMi0zNiAyOXQtMjggMzdxLTI2LTYtNTEuNS05dC01MS41LTMtcTU3IDAtMTEyIDE0dC0xMDggNDBxLTkgNS0xNC41IDE0dC01LjUgMjB2MzJoMzIxcTIwIDkuNSA0MHQyMC41IDQwSDEyMFptMzIwLTMyMHEtNjYgMC0xMTMtNDd0LTQ3LTExM3EwLTY2IDQ3LTExM3QxMTMtNDdxNjYgMCAxMTMgNDd0NDcgMTEzcTAgNjYtNDcgMTEzdC0xMTMgNDdaTTQ0MC04MHEzMyAwIDU2LjUtMjMuNVQ1MjAtNjQwcTAtMzMtMjMuNS01Ni41VDQ0MC03MjBxLTMzIDAtNTYuNSAyMy41VDM2MC02NDBxMCAzMyAyMy41IDU2LjVUNDQwLTU2MFptMC04MFptMCA0MDBaIi8+PC9zdmc+" class="fade-in"/>
+    <g x="${x3 + 8}" y="28">
+      <svg x="${x3 + 8}" y="28" width="20" height="20" viewBox="0 -960 960 960" fill="#FFFFFF">
+        <path d="M740-560h140v80h-80v220q0 42-29 71t-71 29q-42 0-71-29t-29-71q0-42 29-71t71-29q8 0 18 1.5t22 6.5v-208ZM120-160v-112q0-35 17.5-63t46.5-43q62-31 126-46.5T440-440q42 0 83.5 6.5T607-414q-20 12-36 29t-28 37q-26-6-51.5-9t-51.5-3q-57 0-112 14t-108 40q-9 5-14.5 14t-5.5 20v32h321q2 20 9.5 40t20.5 40H120Zm320-320q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm0-80q33 0 56.5-23.5T520-640q0-33-23.5-56.5T440-720q-33 0-56.5 23.5T360-640q0 33 23.5 56.5T440-560Zm0-80Zm0 400Z"/>
+      </svg>
+    </g>
     <text x="${x3 + 32}" y="44" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
           font-size="16" font-weight="600" fill="${COLORS.text}">
       Top Artists

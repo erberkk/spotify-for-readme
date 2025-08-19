@@ -295,17 +295,13 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
             class="particle" style="animation-delay: ${p.delay}"/>
   `).join('')}
 
-  <!-- Main title (Müzik ikonu kaldırıldı) -->
+  <!-- Main title-->
   <text x="${margin}" y="32" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
         font-size="24" font-weight="800" fill="url(#greenGrad)" class="glow-text fade-in">
     Spotify Dashboard
   </text>
 
   <!-- Card titles -->
-  <text x="${x1 + 8}" y="52" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
-        font-size="16" font-weight="600" fill="${COLORS.text}" class="slide-up">
-    ${esc(hero.label)}
-  </text>
   <text x="${x2 + 8}" y="52" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
         font-size="16" font-weight="600" fill="${COLORS.text}" class="slide-up">
     🔥 Top Tracks
@@ -523,3 +519,4 @@ export default async function handler(req, res) {
     res.status(500).send("Hata: " + (e?.message || e));
   }
 }
+

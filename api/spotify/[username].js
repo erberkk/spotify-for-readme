@@ -59,10 +59,6 @@ function smartEllipsize(text, maxWidth, fontSize = 14, fontWeight = 'normal') {
 
 const BLANK = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAuMBgV3QJRoAAAAASUVORK5CYII=";
 
-const baseUrl = process.env.VERCEL_URL 
-  ? `https://${process.env.VERCEL_URL}` 
-  : "http://localhost:3000";
-
 async function toDataUri(url) {
   if (!url) return BLANK;
   try {
@@ -346,7 +342,7 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
   `).join('')}
 
   <!-- Spotify logo and title -->
-  <image x="${margin}" y="8" width="24" height="24" href="${baseUrl}/Spotify.png" class="fade-in"/>
+  <image x="${margin}" y="8" width="24" height="24" href="https://spotify-for-readme-pi.vercel.app/Spotify.png" class="fade-in"/>
   <text x="${margin + 32}" y="28" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
         font-size="24" font-weight="800" fill="url(#greenGrad)" class="glow-text fade-in">
     Spotify

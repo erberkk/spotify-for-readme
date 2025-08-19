@@ -175,7 +175,9 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
   // Progress bar için
   const progressY = imgY + imgSize + 20;
   const progressWidth = cardW - 32;
-  const progressPercent = hero.duration > 0 ? (hero.progress / hero.duration) * 100 : 0;
+  const progressPercent = hero.duration > 0 ? (hero.progress / hero.duration) : 0;
+  const currentW = progressWidth * progressPercent;
+  const remainingMs = Math.max(0, (hero.duration || 0) - (hero.progress || 0));
 
   // List item dimensions
   const listItemHeight = 40;
@@ -353,10 +355,23 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
     
     <!-- Progress bar -->
     ${hero.duration > 0 ? `
+      <!-- Backdrop -->
       <rect x="${imgX}" y="${progressY}" width="${progressWidth}" height="4" rx="2" fill="${COLORS.border}"/>
-      <rect x="${imgX}" y="${progressY}" width="${(progressWidth * progressPercent) / 100}" height="4" rx="2" 
-            fill="url(#greenGrad)"/>
-    ` : ''}
+      
+      <!-- Foreground (animates only if playing) -->
+      <rect x="${imgX}" y="${progressY}" width="${currentW}" height="4" rx="2" fill="url(#greenGrad)">
+        ${hero.isPlaying ? `
+          <animate 
+            attributeName="width"
+            from="${currentW}" 
+            to="${progressWidth}" 
+            dur="${(remainingMs/1000).toFixed(2)}s"
+            fill="freeze"
+            begin="0s" />
+        ` : ``}
+      </rect>
+    ` : ``}
+
     
     <!-- Clickable area -->
     ${hero.url ? 

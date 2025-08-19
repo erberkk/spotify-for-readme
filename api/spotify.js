@@ -1,4 +1,4 @@
-// api/spotify.js — Enhanced Animated Spotify Widget
+// api/spotify.js — Enhanced Spotify Widget (Fixed Layout)
 const {
   SPOTIFY_CLIENT_ID,
   SPOTIFY_CLIENT_SECRET,
@@ -29,11 +29,11 @@ function esc(s) {
 }
 
 // Dinamik metin kısaltma - card genişliğine göre
-function smartEllipsize(text, maxWidth, fontSize = 13, fontWeight = 'normal') {
+function smartEllipsize(text, maxWidth, fontSize = 14, fontWeight = 'normal') {
   if (!text) return "—";
   
   // Karakter başına ortalama piksel (font-size ve weight'e göre tahmin)
-  const charWidth = fontSize * (fontWeight === 'bold' || fontWeight === '700' ? 0.65 : 0.55);
+  const charWidth = fontSize * (fontWeight === 'bold' || fontWeight === '700' ? 0.6 : 0.55);
   const maxChars = Math.floor(maxWidth / charWidth);
   
   if (text.length <= maxChars) return text;
@@ -168,14 +168,18 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
   const textX = imgX + imgSize + 20;
   const textWidth = cardW - imgSize - 50;
   
-  const titleY = imgY + 30;
-  const artistY = titleY + 25;
-  const statusY = artistY + 20;
+  const titleY = imgY + 35;
+  const artistY = titleY + 28;
+  const statusY = artistY + 25;
 
   // Progress bar için
   const progressY = imgY + imgSize + 20;
   const progressWidth = cardW - 32;
   const progressPercent = hero.duration > 0 ? (hero.progress / hero.duration) * 100 : 0;
+
+  // List item dimensions
+  const listItemHeight = 40;
+  const iconSize = 28;
 
   return `
 <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Spotify Summary">
@@ -198,7 +202,7 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
 
     <!-- Filters -->
     <filter id="glow">
-      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
       <feMerge> 
         <feMergeNode in="coloredBlur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -213,19 +217,12 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
     <clipPath id="heroImg">
       <rect x="${imgX}" y="${imgY}" width="${imgSize}" height="${imgSize}" rx="12"/>
     </clipPath>
-    
-    ${top.artists.map((_, i) => 
-      `<clipPath id="artist-${i}">
-        <circle cx="${x3 + 26 + 12}" cy="${topY + 40 + (i + 1) * 35 - 6}" r="12"/>
-      </clipPath>`
-    ).join("")}
 
     <!-- Animations -->
     <style>
       .fade-in { animation: fadeIn 0.8s ease-out; }
       .slide-up { animation: slideUp 0.6s ease-out; }
       .pulse { animation: pulse 2s infinite; }
-      .rotate { animation: rotate 20s linear infinite; }
       .glow-text { filter: url(#glow); }
       
       @keyframes fadeIn {
@@ -241,11 +238,6 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
       @keyframes pulse {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.7; }
-      }
-      
-      @keyframes rotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
       }
       
       .card-hover {
@@ -267,61 +259,61 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
   <circle cx="${W*0.8}" cy="${H*0.7}" r="80" fill="${COLORS.accent}30" opacity="0.08" class="pulse"/>
 
   <!-- Main title with glow -->
-  <text x="${margin}" y="32" font-family="Inter,SF Pro Display,Segoe UI,Roboto,Arial,sans-serif" 
+  <text x="${margin}" y="32" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
         font-size="24" font-weight="800" fill="url(#greenGrad)" class="glow-text fade-in">
     🎵 Spotify Dashboard
   </text>
 
   <!-- Card titles -->
-  <text x="${x1 + 8}" y="52" font-family="Inter,SF Pro Display,Segoe UI,Roboto,Arial,sans-serif" 
+  <text x="${x1 + 8}" y="52" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
         font-size="16" font-weight="600" fill="${COLORS.text}" class="slide-up">
     ${esc(hero.label)}
   </text>
-  <text x="${x2 + 8}" y="52" font-family="Inter,SF Pro Display,Segoe UI,Roboto,Arial,sans-serif" 
+  <text x="${x2 + 8}" y="52" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
         font-size="16" font-weight="600" fill="${COLORS.text}" class="slide-up">
     🔥 Top Tracks
   </text>
-  <text x="${x3 + 8}" y="52" font-family="Inter,SF Pro Display,Segoe UI,Roboto,Arial,sans-serif" 
+  <text x="${x3 + 8}" y="52" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
         font-size="16" font-weight="600" fill="${COLORS.text}" class="slide-up">
     ⭐ Top Artists
   </text>
 
-  <!-- Card 1: Now Playing/Paused/Last (Enhanced) -->
+  <!-- Card 1: Now Playing/Paused/Last (Fixed - No Rotation) -->
   <g class="card-hover fade-in">
     <rect x="${x1}" y="${topY}" width="${cardW}" height="${cardH}" rx="16" 
           fill="url(#cardGrad)" stroke="${COLORS.border}" stroke-width="2" filter="url(#shadow)"/>
     
-    <!-- Album art with rotation if playing -->
+    <!-- Album art (Static - No Rotation) -->
     ${heroImg ? 
       `<image href="${heroImg}" x="${imgX}" y="${imgY}" width="${imgSize}" height="${imgSize}" 
-              clip-path="url(#heroImg)" class="${hero.isPlaying ? 'rotate' : ''}"/>` :
+              clip-path="url(#heroImg)"/>` :
       `<rect x="${imgX}" y="${imgY}" width="${imgSize}" height="${imgSize}" rx="12" fill="#333"/>
-       <text x="${imgX + imgSize/2}" y="${imgY + imgSize/2}" text-anchor="middle" 
-             font-family="Inter" font-size="24" fill="${COLORS.muted}">♪</text>`
+       <text x="${imgX + imgSize/2}" y="${imgY + imgSize/2 + 8}" text-anchor="middle" 
+             font-family="SF Pro Display,Inter,system-ui,sans-serif" font-size="32" fill="${COLORS.muted}">♪</text>`
     }
     
     <!-- Glowing border for album art if playing -->
     ${hero.isPlaying ? 
       `<rect x="${imgX}" y="${imgY}" width="${imgSize}" height="${imgSize}" rx="12" 
-             fill="none" stroke="${COLORS.green}" stroke-width="3" opacity="0.6" class="pulse"/>` : ''
+             fill="none" stroke="${COLORS.green}" stroke-width="3" opacity="0.8" class="pulse"/>` : ''
     }
     
-    <!-- Song info with smart ellipsize -->
-    <text x="${textX}" y="${titleY}" font-family="Inter,SF Pro Display,Segoe UI,Roboto,Arial,sans-serif" 
-          font-size="16" fill="${COLORS.text}" font-weight="700">
-      ${esc(smartEllipsize(hero.title, textWidth, 16, 'bold'))}
+    <!-- Song info with better fonts and sizing -->
+    <text x="${textX}" y="${titleY}" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
+          font-size="18" fill="${COLORS.text}" font-weight="700">
+      ${esc(smartEllipsize(hero.title, textWidth, 18, 'bold'))}
     </text>
-    <text x="${textX}" y="${artistY}" font-family="Inter,SF Pro Display,Segoe UI,Roboto,Arial,sans-serif" 
-          font-size="14" fill="${COLORS.muted}">
-      ${esc(smartEllipsize(hero.artist, textWidth, 14))}
+    <text x="${textX}" y="${artistY}" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
+          font-size="15" fill="${COLORS.muted}" font-weight="500">
+      ${esc(smartEllipsize(hero.artist, textWidth, 15))}
     </text>
     
     <!-- Status indicator -->
     <g>
-      <circle cx="${textX}" cy="${statusY}" r="4" fill="${hero.isPlaying ? COLORS.green : COLORS.muted}" 
+      <circle cx="${textX}" cy="${statusY}" r="5" fill="${hero.isPlaying ? COLORS.green : COLORS.muted}" 
               class="${hero.isPlaying ? 'pulse' : ''}"/>
-      <text x="${textX + 12}" y="${statusY + 4}" font-family="Inter" font-size="12" 
-            fill="${hero.isPlaying ? COLORS.green : COLORS.muted}" font-weight="600">
+      <text x="${textX + 16}" y="${statusY + 5}" font-family="SF Pro Display,Inter,system-ui,sans-serif" 
+            font-size="13" fill="${hero.isPlaying ? COLORS.green : COLORS.muted}" font-weight="600" letter-spacing="0.5px">
         ${hero.isPlaying ? 'PLAYING' : (hero.label === 'Paused' ? 'PAUSED' : 'OFFLINE')}
       </text>
     </g>
@@ -341,38 +333,45 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
     }
   </g>
 
-  <!-- Card 2: Top Tracks (Enhanced) -->
+  <!-- Card 2: Top Tracks (Fixed Alignment) -->
   <g class="card-hover fade-in">
     <rect x="${x2}" y="${topY}" width="${cardW}" height="${cardH}" rx="16" 
           fill="url(#cardGrad)" stroke="${COLORS.border}" stroke-width="2" filter="url(#shadow)"/>
     
     ${top.tracks.map((t, i) => {
-      const y = topY + 40 + (i + 1) * 35;
+      const itemY = topY + 30 + (i * listItemHeight);
+      const centerY = itemY + (listItemHeight / 2);
       const img = tImgs[i] || BLANK;
-      const trackTextWidth = cardW - 80;
+      const trackTextWidth = cardW - 100;
       const rank = i + 1;
       
       return `
         <g class="slide-up" style="animation-delay: ${i * 0.1}s">
           <!-- Rank number -->
-          <text x="${x2 + 16}" y="${y + 4}" font-family="Inter" font-size="16" font-weight="800" 
-                fill="${COLORS.accent}" opacity="0.7">${rank}</text>
+          <text x="${x2 + 16}" y="${centerY + 6}" text-anchor="middle" 
+                font-family="SF Pro Display,Inter,system-ui,sans-serif" font-size="16" font-weight="800" 
+                fill="${COLORS.accent}" opacity="0.8">${rank}</text>
           
-          <!-- Track image -->
-          <image href="${img}" x="${x2 + 38}" y="${y - 12}" width="24" height="24" rx="4"/>
+          <!-- Track image (square with border radius) -->
+          <rect x="${x2 + 36}" y="${centerY - iconSize/2}" width="${iconSize}" height="${iconSize}" 
+                rx="6" fill="${COLORS.border}"/>
+          <image href="${img}" x="${x2 + 36}" y="${centerY - iconSize/2}" width="${iconSize}" height="${iconSize}" 
+                 style="clip-path: inset(0 round 6px)"/>
           
-          <!-- Track info -->
-          <text x="${x2 + 70}" y="${y - 2}" font-family="Inter" font-size="13" font-weight="600" fill="${COLORS.text}">
-            ${esc(smartEllipsize(t.title, trackTextWidth * 0.6, 13, 'bold'))}
+          <!-- Track info (vertically centered) -->
+          <text x="${x2 + 76}" y="${centerY - 4}" font-family="SF Pro Display,Inter,system-ui,sans-serif" 
+                font-size="14" font-weight="600" fill="${COLORS.text}">
+            ${esc(smartEllipsize(t.title, trackTextWidth * 0.65, 14, 'bold'))}
           </text>
-          <text x="${x2 + 70}" y="${y + 12}" font-family="Inter" font-size="11" fill="${COLORS.muted}">
-            ${esc(smartEllipsize(t.artist, trackTextWidth * 0.8, 11))}
+          <text x="${x2 + 76}" y="${centerY + 12}" font-family="SF Pro Display,Inter,system-ui,sans-serif" 
+                font-size="12" fill="${COLORS.muted}" font-weight="500">
+            ${esc(smartEllipsize(t.artist, trackTextWidth * 0.8, 12))}
           </text>
           
           <!-- Hover effect -->
           ${t.url ? 
             `<a href="${t.url}" target="_blank">
-              <rect x="${x2 + 8}" y="${y - 16}" width="${cardW - 16}" height="32" rx="8" fill="transparent"/>
+              <rect x="${x2 + 8}" y="${itemY}" width="${cardW - 16}" height="${listItemHeight}" rx="8" fill="transparent"/>
             </a>` : ''
           }
         </g>
@@ -380,37 +379,41 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
     }).join("")}
   </g>
 
-  <!-- Card 3: Top Artists (Enhanced) -->
+  <!-- Card 3: Top Artists (Fixed Alignment) -->
   <g class="card-hover fade-in">
     <rect x="${x3}" y="${topY}" width="${cardW}" height="${cardH}" rx="16" 
           fill="url(#cardGrad)" stroke="${COLORS.border}" stroke-width="2" filter="url(#shadow)"/>
     
     ${top.artists.map((a, i) => {
-      const y = topY + 40 + (i + 1) * 35;
+      const itemY = topY + 30 + (i * listItemHeight);
+      const centerY = itemY + (listItemHeight / 2);
       const img = aImgs[i] || BLANK;
-      const artistTextWidth = cardW - 80;
+      const artistTextWidth = cardW - 100;
       const rank = i + 1;
       
       return `
         <g class="slide-up" style="animation-delay: ${i * 0.1}s">
           <!-- Rank number -->
-          <text x="${x3 + 16}" y="${y + 4}" font-family="Inter" font-size="16" font-weight="800" 
-                fill="${COLORS.green}" opacity="0.7">${rank}</text>
+          <text x="${x3 + 16}" y="${centerY + 6}" text-anchor="middle" 
+                font-family="SF Pro Display,Inter,system-ui,sans-serif" font-size="16" font-weight="800" 
+                fill="${COLORS.green}" opacity="0.8">${rank}</text>
           
-          <!-- Artist image (circular) -->
-          <image href="${img}" x="${x3 + 38}" y="${y - 12}" width="24" height="24" 
-                 clip-path="url(#artist-${i})"/>
-          <circle cx="${x3 + 50}" cy="${y}" r="12" fill="none" stroke="${COLORS.border}" stroke-width="1"/>
+          <!-- Artist image (square with border radius) -->
+          <rect x="${x3 + 36}" y="${centerY - iconSize/2}" width="${iconSize}" height="${iconSize}" 
+                rx="6" fill="${COLORS.border}"/>
+          <image href="${img}" x="${x3 + 36}" y="${centerY - iconSize/2}" width="${iconSize}" height="${iconSize}" 
+                 style="clip-path: inset(0 round 6px)"/>
           
-          <!-- Artist name -->
-          <text x="${x3 + 70}" y="${y + 4}" font-family="Inter" font-size="14" font-weight="600" fill="${COLORS.text}">
-            ${esc(smartEllipsize(a.name, artistTextWidth, 14, 'bold'))}
+          <!-- Artist name (vertically centered) -->
+          <text x="${x3 + 76}" y="${centerY + 4}" font-family="SF Pro Display,Inter,system-ui,sans-serif" 
+                font-size="15" font-weight="600" fill="${COLORS.text}">
+            ${esc(smartEllipsize(a.name, artistTextWidth, 15, 'bold'))}
           </text>
           
           <!-- Hover effect -->
           ${a.url ? 
             `<a href="${a.url}" target="_blank">
-              <rect x="${x3 + 8}" y="${y - 16}" width="${cardW - 16}" height="32" rx="8" fill="transparent"/>
+              <rect x="${x3 + 8}" y="${itemY}" width="${cardW - 16}" height="${listItemHeight}" rx="8" fill="transparent"/>
             </a>` : ''
           }
         </g>
@@ -419,7 +422,8 @@ function render({ hero, heroImg, top, tImgs, aImgs }) {
   </g>
 
   <!-- Footer -->
-  <text x="${W - margin}" y="${H - 12}" text-anchor="end" font-family="Inter" font-size="10" 
+  <text x="${W - margin}" y="${H - 12}" text-anchor="end" 
+        font-family="SF Pro Display,Inter,system-ui,sans-serif" font-size="10" 
         fill="${COLORS.muted}" opacity="0.6">
     Last updated: ${new Date().toLocaleString('tr-TR', { 
       hour: '2-digit', 

@@ -13,27 +13,8 @@ async function getRedisClient() {
     redisClient = createClient({
       url: REDIS_URL,
       socket: {
-        tls: false,
-        connectTimeout: 60000,
-        commandTimeout: 5000
-      },
-      retry_strategy: (options) => {
-        if (options.error && options.error.code === 'ECONNREFUSED') {
-          return new Error('The server refused the connection');
-        }
-        if (options.total_retry_time > 1000 * 60 * 60) {
-          return new Error('Retry time exhausted');
-        }
-        if (options.attempt > 10) {
-          return undefined;
-        }
-        return Math.min(options.attempt * 100, 3000);
+        tls: false
       }
-    });
-    
-    redisClient.on('error', (err) => {
-      console.error('Redis Client Error:', err);
-      redisClient = null; // Reset client on error
     });
     
     await redisClient.connect();
@@ -57,8 +38,7 @@ async function exchangeCodeForTokens(code, redirectUri) {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded'
     },
-    body,
-    signal: AbortSignal.timeout(10000) // 10 second timeout
+    body
   });
 
   if (!response.ok) {
@@ -73,8 +53,7 @@ async function getUserProfile(accessToken) {
   const response = await fetch('https://api.spotify.com/v1/me', {
     headers: {
       'Authorization': `Bearer ${accessToken}`
-    },
-    signal: AbortSignal.timeout(8000) // 8 second timeout
+    }
   });
 
   if (!response.ok) {
@@ -85,29 +64,11 @@ async function getUserProfile(accessToken) {
 }
 
 export default async function handler(req, res) {
-  // Set timeout for the entire request
-  const timeout = setTimeout(() => {
-    if (!res.headersSent) {
-      console.error('Request timeout after 25 seconds');
-      res.status(504).send(`
-        <html>
-          <head><title>Timeout Error</title></head>
-          <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-            <h1>⏰ Request Timeout</h1>
-            <p>The authorization process took too long. Please try again.</p>
-            <a href="/api/auth/login" style="color: #1ed760;">Try Again</a>
-          </body>
-        </html>
-      `);
-    }
-  }, 25000); // 25 second timeout
-
   try {
     const { code, state, error } = req.query;
 
     // Handle authorization errors
     if (error) {
-      clearTimeout(timeout);
       return res.status(400).send(`
         <html>
           <head><title>Authorization Error</title></head>
@@ -121,7 +82,6 @@ export default async function handler(req, res) {
     }
 
     if (!code) {
-      clearTimeout(timeout);
       return res.status(400).send('Missing authorization code');
     }
 
@@ -131,22 +91,15 @@ export default async function handler(req, res) {
       : `https://${req.headers.host}`;
     const redirectUri = `${baseUrl}/api/auth/callback`;
 
-    console.log('🔄 Starting OAuth callback process...');
-    
     // Exchange code for tokens
-    console.log('🔑 Exchanging code for tokens...');
     const tokenData = await exchangeCodeForTokens(code, redirectUri);
     const { access_token, refresh_token } = tokenData;
-    console.log('✅ Token exchange successful');
 
     // Get user profile to get username
-    console.log('👤 Getting user profile...');
     const userProfile = await getUserProfile(access_token);
     const username = userProfile.id;
-    console.log(`✅ User profile retrieved: ${username}`);
 
     // Store tokens in Redis
-    console.log('💾 Storing tokens in Redis...');
     const redis = await getRedisClient();
     const userKey = `spotify:user:${username}`;
     
@@ -158,12 +111,7 @@ export default async function handler(req, res) {
       profile_url: userProfile.external_urls?.spotify || `https://open.spotify.com/user/${username}`,
       created_at: Date.now()
     });
-    console.log('✅ Redis storage successful');
 
-    // Clear timeout - success
-    clearTimeout(timeout);
-    console.log('🎉 OAuth callback completed successfully');
-    
     // Success page with instructions
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.status(200).send(`
@@ -357,7 +305,6 @@ export default async function handler(req, res) {
     `);
 
   } catch (error) {
-    clearTimeout(timeout);
     console.error('OAuth callback error:', error);
     res.status(500).send(`
       <html>

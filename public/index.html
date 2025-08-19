@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spotify Widget for GitHub README</title>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0a0e13 0%, #1a1d24 100%);
+      color: #ffffff;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: flex-end;
+      z-index: 100;
+    }
+    
+    .language-switcher {
+      background: rgba(22, 24, 29, 0.8);
+      border: 2px solid #2a2d35;
+      border-radius: 25px;
+      padding: 8px 16px;
+      display: flex;
+      gap: 10px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .lang-btn {
+      background: none;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      padding: 5px 10px;
+      border-radius: 15px;
+      transition: all 0.3s ease;
+      font-size: 14px;
+    }
+    
+    .lang-btn.active {
+      background: #1ed760;
+      color: #000;
+    }
+    
+    .lang-btn:hover:not(.active) {
+      color: #ffffff;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 120px 20px 40px;
+      text-align: center;
+    }
+    
+    .logo {
+      font-size: 4rem;
+      margin-bottom: 20px;
+    }
+    
+    h1 {
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, #1ed760, #00d4ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 20px;
+      line-height: 1.2;
+    }
+    
+    .subtitle {
+      font-size: clamp(1.1rem, 3vw, 1.4rem);
+      color: #9ca3af;
+      margin-bottom: 60px;
+      line-height: 1.6;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      margin: 60px 0;
+      max-width: 1000px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    .feature {
+      background: rgba(22, 24, 29, 0.8);
+      border: 2px solid #2a2d35;
+      border-radius: 20px;
+      padding: 40px 30px;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .feature:hover {
+      transform: translateY(-5px);
+      border-color: #1ed760;
+      box-shadow: 0 20px 40px rgba(30, 215, 96, 0.2);
+    }
+    
+    .feature::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #1ed760, #00d4ff);
+      transform: scaleX(0);
+      transition: transform 0.3s ease;
+    }
+    
+    .feature:hover::before {
+      transform: scaleX(1);
+    }
+    
+    .feature-icon {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1ed760, #00d4ff);
+      border-radius: 15px;
+      color: #000;
+    }
+    
+    .feature h3 {
+      font-size: 1.4rem;
+      margin-bottom: 15px;
+      color: #1ed760;
+    }
+    
+    .feature p {
+      color: #9ca3af;
+      line-height: 1.6;
+      font-size: 1rem;
+    }
+    
+    .cta-button {
+      display: inline-block;
+      background: linear-gradient(135deg, #1ed760, #00d4ff);
+      color: #000;
+      text-decoration: none;
+      padding: 18px 36px;
+      border-radius: 50px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 20px 10px;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 30px rgba(30, 215, 96, 0.3);
+    }
+    
+    .cta-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(30, 215, 96, 0.4);
+    }
+    
+    .secondary-button {
+      background: transparent;
+      border: 2px solid #2a2d35;
+      color: #ffffff;
+    }
+    
+    .secondary-button:hover {
+      border-color: #1ed760;
+      color: #1ed760;
+    }
+    
+    .example {
+      background: rgba(22, 24, 29, 0.8);
+      border: 2px solid #2a2d35;
+      border-radius: 20px;
+      padding: 30px;
+      margin: 60px auto;
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 14px;
+      color: #1ed760;
+      text-align: left;
+      overflow-x: auto;
+      max-width: 800px;
+    }
+    
+    .footer {
+      margin-top: 80px;
+      color: #9ca3af;
+      font-size: 0.9rem;
+      padding: 40px 20px;
+      border-top: 1px solid #2a2d35;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .container {
+        padding: 100px 15px 30px;
+      }
+      
+      .features {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        margin: 40px 0;
+      }
+      
+      .feature {
+        padding: 30px 20px;
+      }
+      
+      .header {
+        padding: 15px;
+      }
+      
+      .language-switcher {
+        padding: 6px 12px;
+      }
+      
+      .lang-btn {
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .cta-button {
+        display: block;
+        margin: 15px auto;
+        max-width: 280px;
+      }
+      
+      .example {
+        margin: 40px 15px;
+        padding: 20px;
+        font-size: 12px;
+      }
+    }
+    
+    /* Animation */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .feature {
+      animation: fadeInUp 0.6s ease forwards;
+    }
+    
+    .feature:nth-child(1) { animation-delay: 0.1s; }
+    .feature:nth-child(2) { animation-delay: 0.2s; }
+    .feature:nth-child(3) { animation-delay: 0.3s; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="language-switcher">
+      <button class="lang-btn active" data-lang="tr">🇹🇷 TR</button>
+      <button class="lang-btn" data-lang="en">🇺🇸 EN</button>
+    </div>
+  </header>
+
+  <div class="container">    
+    <h1 data-tr="Github için Spotify Widget" data-en="Spotify Widget for GitHub">Github için Spotify Widget</h1>
+    
+    <p class="subtitle" data-tr="GitHub README'nizde canlı Spotify aktivitenizi gösterin! Şu an çalan şarkı, en sevdiğiniz parçalar ve sanatçılar..." data-en="Display your live Spotify activity in your GitHub README! Currently playing songs, your favorite tracks and artists...">
+      GitHub README'nizde canlı Spotify aktivitenizi gösterin!<br>
+      Şu an çalan şarkı, en sevdiğiniz parçalar ve sanatçılar...
+    </p>
+    
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">
+          <i data-lucide="headphones"></i>
+        </div>
+        <h3 data-tr="Canlı Müzik" data-en="Live Music">Canlı Müzik</h3>
+        <p data-tr="Şu an çalan şarkıyı gerçek zamanlı görün" data-en="See your currently playing song in real-time">Şu an çalan şarkıyı gerçek zamanlı görün</p>
+      </div>
+      
+      <div class="feature">
+        <div class="feature-icon">
+          <i data-lucide="flame"></i>
+        </div>
+        <h3 data-tr="Top Listeler" data-en="Top Lists">Top Listeler</h3>
+        <p data-tr="En çok dinlediğiniz parçalar ve sanatçılar" data-en="Your most listened tracks and artists">En çok dinlediğiniz parçalar ve sanatçılar</p>
+      </div>
+      
+      <div class="feature">
+        <div class="feature-icon">
+          <i data-lucide="zap"></i>
+        </div>
+        <h3 data-tr="Hızlı Kurulum" data-en="Quick Setup">Hızlı Kurulum</h3>
+        <p data-tr="Tek tıkla Spotify hesabınızı bağlayın" data-en="Connect your Spotify account with one click">Tek tıkla Spotify hesabınızı bağlayın</p>
+      </div>
+    </div>
+    
+    <div class="example">
+      <strong data-tr="Örnek Widget:" data-en="Example Widget:">Örnek Widget:</strong><br>
+      [![Spotify Summary](https://spotify-for-readme-pi.vercel.app/api/spotify/username)](https://open.spotify.com/user/username)
+    </div>
+    
+    <a href="/api/auth/login" class="cta-button" data-tr="Spotify'ı Bağla" data-en="Connect Spotify">Spotify'ı Bağla</a>
+    <a href="https://github.com/erberkk/spotify-for-readme" class="cta-button secondary-button" data-tr="GitHub'da Gör" data-en="View on GitHub">📚 GitHub'da Gör</a>
+    
+    <div class="footer">
+      <p data-tr="Herkes kendi Spotify hesabını bağlayabilir" data-en=" Everyone can connect their own Spotify account">Herkes kendi Spotify hesabını bağlayabilir</p>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+    
+    // Language switching functionality
+    const langBtns = document.querySelectorAll('.lang-btn');
+    const elements = document.querySelectorAll('[data-tr][data-en]');
+    
+    function switchLanguage(lang) {
+      elements.forEach(element => {
+        const text = lang === 'tr' ? element.getAttribute('data-tr') : element.getAttribute('data-en');
+        if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+          element.placeholder = text;
+        } else {
+          element.textContent = text;
+        }
+      });
+      
+      // Update active button
+      langBtns.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-lang') === lang) {
+          btn.classList.add('active');
+        }
+      });
+      
+      // Update HTML lang attribute
+      document.documentElement.lang = lang;
+    }
+    
+    langBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const lang = btn.getAttribute('data-lang');
+        switchLanguage(lang);
+      });
+    });
+    
+    // Add hover effects for features
+    const features = document.querySelectorAll('.feature');
+    features.forEach(feature => {
+      feature.addEventListener('mouseenter', () => {
+        feature.style.transform = 'translateY(-5px)';
+      });
+      
+      feature.addEventListener('mouseleave', () => {
+        feature.style.transform = 'translateY(0)';
+      });
+    });
+  </script>
+</body>
+</html>

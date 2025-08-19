@@ -351,10 +351,14 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
   `).join('')}
 
   <!-- Spotify logo and title -->
-  <text x="${margin + 32}" y="28" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
-        font-size="24" font-weight="800" fill="url(#greenGrad)" class="glow-text fade-in">
-    Spotify
-  </text>
+  <a href="https://open.spotify.com/user/${username}" target="_blank">
+    <text x="0" y="28" text-anchor="start" font-family="SF Pro Display,Inter,Segoe UI,system-ui,sans-serif" 
+          font-size="24" font-weight="800" fill="url(#greenGrad)" class="glow-text fade-in"
+          style="cursor: pointer">
+      <title>Spotify Profiline Git</title>
+      Spotify
+    </text>
+  </a>
 
   <!-- Card titles -->
   <g class="slide-up">
@@ -448,12 +452,7 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
     ` : ``}
 
     
-    <!-- Clickable area -->
-    ${hero.url ? 
-      `<a href="${hero.url}" target="_blank">
-        <rect x="${x1}" y="${topY}" width="${cardW}" height="${cardH}" rx="16" fill="transparent"/>
-      </a>` : ''
-    }
+
   </g>
 
   <!-- Card 2: Top Tracks -->
@@ -498,12 +497,7 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
             ${esc(smartEllipsize(t.artist, trackTextWidth * 0.8, 12))}
           </text>
           
-          <!-- Hover effect -->
-          ${t.url ? 
-            `<a href="${t.url}" target="_blank">
-              <rect x="${x2 + 8}" y="${itemY}" width="${cardW - 16}" height="${listItemHeight}" rx="8" fill="transparent"/>
-            </a>` : ''
-          }
+
         </g>
       `;
     }).join("")}
@@ -547,12 +541,7 @@ function render({ hero, heroImg, top, tImgs, aImgs, username }) {
             ${esc(smartEllipsize(a.name, artistTextWidth, 15, 'bold'))}
           </text>
           
-          <!-- Hover effect -->
-          ${a.url ? 
-            `<a href="${a.url}" target="_blank">
-              <rect x="${x3 + 8}" y="${itemY}" width="${cardW - 16}" height="${listItemHeight}" rx="8" fill="transparent"/>
-            </a>` : ''
-          }
+
         </g>
       `;
     }).join("")}

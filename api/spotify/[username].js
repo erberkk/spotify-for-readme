@@ -13,8 +13,35 @@ async function getRedisClient() {
     redisClient = createClient({
       url: REDIS_URL,
       socket: {
-        tls: false
+        tls: false,
+        connectTimeout: 60000, // 60 seconds
+        commandTimeout: 10000  // 10 seconds per command
+      },
+      retry_strategy: (options) => {
+        if (options.error && options.error.code === 'ECONNREFUSED') {
+          return new Error('The server refused the connection');
+        }
+        if (options.total_retry_time > 1000 * 60 * 60) {
+          return new Error('Retry time exhausted');
+        }
+        if (options.attempt > 10) {
+          return undefined;
+        }
+        return Math.min(options.attempt * 100, 3000);
       }
+    });
+    
+    redisClient.on('error', (err) => {
+      console.error('Redis Client Error:', err);
+      redisClient = null;
+    });
+    
+    redisClient.on('connect', () => {
+      console.log('✅ Redis connected successfully');
+    });
+    
+    redisClient.on('reconnecting', () => {
+      console.log('🔄 Redis reconnecting...');
     });
     
     await redisClient.connect();
@@ -86,12 +113,27 @@ async function getAccessToken(username) {
     throw new Error('User not found or token expired');
   }
 
-  // Check if access token exists
+  // Try using existing access token first (if exists)
   if (userData.access_token) {
-    return userData.access_token;
+    // Test if token is still valid by making a simple API call
+    try {
+      const testResponse = await fetch("https://api.spotify.com/v1/me", {
+        headers: { Authorization: `Bearer ${userData.access_token}` },
+        signal: AbortSignal.timeout(5000)
+      });
+      
+      if (testResponse.ok) {
+        console.log(`✅ Access token valid for user: ${username}`);
+        return userData.access_token;
+      } else {
+        console.log(`⚠️ Access token invalid for user: ${username}, status: ${testResponse.status}`);
+      }
+    } catch (error) {
+      console.log(`⚠️ Access token test failed for user: ${username}, error: ${error.message}`);
+    }
   }
 
-  // Need to refresh the token
+  // Token doesn't exist or is invalid - refresh it
   const { SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET } = process.env;
   
   const body = new URLSearchParams({ 
@@ -106,18 +148,22 @@ async function getAccessToken(username) {
       Authorization: `Basic ${auth}`, 
       "Content-Type": "application/x-www-form-urlencoded" 
     },
-    body
+    body,
+    signal: AbortSignal.timeout(10000)
   });
   
   if (!res.ok) {
+    const errorText = await res.text();
+    console.error(`❌ Token refresh failed for user: ${username}, status: ${res.status}, error: ${errorText}`);
     throw new Error("Token refresh failed - user needs to re-authorize");
   }
   
   const tokenData = await res.json();
   
-  // Update Redis with new access token
+  // Update Redis with new access token and timestamp
   await redis.hSet(userKey, {
-    access_token: tokenData.access_token
+    access_token: tokenData.access_token,
+    token_refreshed_at: Date.now()
   });
   
   return tokenData.access_token;
@@ -125,71 +171,90 @@ async function getAccessToken(username) {
 
 // ------- Spotify API -------
 async function getNowPlaying(token) {
-  const r = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  if (r.status === 204 || !r.ok) return null;
-  
-  const j = await r.json();
-  const it = j.item;
-  if (!it) return null;
-  
-  return {
-    title: it.name,
-    artist: (it.artists || []).map(a => a.name).join(", "),
-    url: it.external_urls?.spotify,
-    image: it.album?.images?.[0]?.url || null,
-    isPlaying: j.is_playing === true,
-    progress: j.progress_ms || 0,
-    duration: it.duration_ms || 0
-  };
+  try {
+    const r = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(8000) // 8 second timeout
+    });
+    if (r.status === 204 || !r.ok) return null;
+    
+    const j = await r.json();
+    const it = j.item;
+    if (!it) return null;
+    
+    return {
+      title: it.name,
+      artist: (it.artists || []).map(a => a.name).join(", "),
+      url: it.external_urls?.spotify,
+      image: it.album?.images?.[0]?.url || null,
+      isPlaying: j.is_playing === true,
+      progress: j.progress_ms || 0,
+      duration: it.duration_ms || 0
+    };
+  } catch (error) {
+    console.error('❌ getNowPlaying error:', error.message);
+    return null;
+  }
 }
 
 async function getLastPlayed(token) {
-  const r = await fetch("https://api.spotify.com/v1/me/player/recently-played?limit=1", {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  if (!r.ok) return null;
-  
-  const j = await r.json();
-  const it = j.items?.[0]?.track;
-  if (!it) return null;
-  
-  return {
-    title: it.name,
-    artist: (it.artists || []).map(a => a.name).join(", "),
-    url: it.external_urls?.spotify,
-    image: it.album?.images?.[0]?.url || null
-  };
+  try {
+    const r = await fetch("https://api.spotify.com/v1/me/player/recently-played?limit=1", {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(8000) // 8 second timeout
+    });
+    if (!r.ok) return null;
+    
+    const j = await r.json();
+    const it = j.items?.[0]?.track;
+    if (!it) return null;
+    
+    return {
+      title: it.name,
+      artist: (it.artists || []).map(a => a.name).join(", "),
+      url: it.external_urls?.spotify,
+      image: it.album?.images?.[0]?.url || null
+    };
+  } catch (error) {
+    console.error('❌ getLastPlayed error:', error.message);
+    return null;
+  }
 }
 
 async function getTop(token) {
-  const [trRes, arRes] = await Promise.all([
-    fetch("https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5", { 
-      headers: { Authorization: `Bearer ${token}` } 
-    }),
-    fetch("https://api.spotify.com/v1/me/top/artists?time_range=short_term&limit=5", { 
-      headers: { Authorization: `Bearer ${token}` } 
-    })
-  ]);
-  
-  const tr = trRes.ok ? await trRes.json() : { items: [] };
-  const ar = arRes.ok ? await arRes.json() : { items: [] };
+  try {
+    const [trRes, arRes] = await Promise.all([
+      fetch("https://api.spotify.com/v1/me/top/tracks?time_range=short_term&limit=5", { 
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(8000) // 8 second timeout
+      }),
+      fetch("https://api.spotify.com/v1/me/top/artists?time_range=short_term&limit=5", { 
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(8000) // 8 second timeout
+      })
+    ]);
+    
+    const tr = trRes.ok ? await trRes.json() : { items: [] };
+    const ar = arRes.ok ? await arRes.json() : { items: [] };
 
-  const tracks = (tr.items || []).map(t => ({
-    title: t.name,
-    artist: (t.artists || []).map(a => a.name).join(", "),
-    image: t.album?.images?.[2]?.url || t.album?.images?.[1]?.url || t.album?.images?.[0]?.url || null,
-    url: t.external_urls?.spotify
-  }));
+    const tracks = (tr.items || []).map(t => ({
+      title: t.name,
+      artist: (t.artists || []).map(a => a.name).join(", "),
+      image: t.album?.images?.[2]?.url || t.album?.images?.[1]?.url || t.album?.images?.[0]?.url || null,
+      url: t.external_urls?.spotify
+    }));
 
-  const artists = (ar.items || []).map(a => ({
-    name: a.name,
-    image: a.images?.[2]?.url || a.images?.[1]?.url || a.images?.[0]?.url || null,
-    url: a.external_urls?.spotify
-  }));
+    const artists = (ar.items || []).map(a => ({
+      name: a.name,
+      image: a.images?.[2]?.url || a.images?.[1]?.url || a.images?.[0]?.url || null,
+      url: a.external_urls?.spotify
+    }));
 
-  return { tracks, artists };
+    return { tracks, artists };
+  } catch (error) {
+    console.error('❌ getTop error:', error.message);
+    return { tracks: [], artists: [] };
+  }
 }
 
 // ------- Enhanced SVG Renderer -------
@@ -628,10 +693,21 @@ function renderErrorSvg(username, errorType = 'not_found') {
 
 // ------- Handler -------
 export default async function handler(req, res) {
+  const startTime = Date.now();
+  
+  const timeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error('⏰ Request timeout after 25 seconds');
+      res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
+      res.status(200).send(renderErrorSvg('timeout', 'error'));
+    }
+  }, 25000); // 25 second timeout
+  
   try {
     const { username } = req.query;
     
     if (!username) {
+      clearTimeout(timeout);
       return res.status(400).send(renderErrorSvg('unknown', 'not_found'));
     }
 
@@ -639,12 +715,13 @@ export default async function handler(req, res) {
     try {
       token = await getAccessToken(username);
     } catch (error) {
-      console.log(`User ${username} not found or token expired:`, error.message);
+      clearTimeout(timeout);
+      console.log(`❌ User ${username} not found or token expired:`, error.message);
       const errorType = error.message.includes('not found') ? 'not_found' : 'expired';
       res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
       return res.status(200).send(renderErrorSvg(username, errorType));
     }
-
+    
     // 1) Şu an çalan bilgisi
     const np = await getNowPlaying(token);
     let hero;
@@ -667,17 +744,22 @@ export default async function handler(req, res) {
     // 2) Top listeler
     const top = await getTop(token);
 
-    // 3) Görseller
-    const heroImg = hero?.image ? await toDataUri(hero.image) : null;
-    const tImgs = await Promise.all((top.tracks || []).map(t => 
-      t.image ? toDataUri(t.image) : Promise.resolve(BLANK)
-    ));
-    const aImgs = await Promise.all((top.artists || []).map(a => 
-      a.image ? toDataUri(a.image) : Promise.resolve(BLANK)
-    ));
+    // 3) Görseller (paralel olarak)
+    const [heroImg, tImgs, aImgs] = await Promise.all([
+      hero?.image ? toDataUri(hero.image) : Promise.resolve(null),
+      Promise.all((top.tracks || []).map(t => 
+        t.image ? toDataUri(t.image) : Promise.resolve(BLANK)
+      )),
+      Promise.all((top.artists || []).map(a => 
+        a.image ? toDataUri(a.image) : Promise.resolve(BLANK)
+      ))
+    ]);
 
     // 4) Render
     const svg = render({ hero, heroImg, top, tImgs, aImgs, username });
+
+    clearTimeout(timeout);
+    const duration = Date.now() - startTime;
 
     // Cache headers - Real-time updates
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -690,7 +772,9 @@ export default async function handler(req, res) {
 
     res.status(200).send(svg);
   } catch (e) {
-    console.error("Spotify widget error:", e);
+    clearTimeout(timeout);
+    const duration = Date.now() - startTime;
+    console.error(`❌ Spotify widget error for user ${req.query.username} after ${duration}ms:`, e);
     res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
     const username = req.query.username || 'unknown';
     res.status(200).send(renderErrorSvg(username, 'error'));

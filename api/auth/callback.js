@@ -13,8 +13,35 @@ async function getRedisClient() {
     redisClient = createClient({
       url: REDIS_URL,
       socket: {
-        tls: false
+        tls: false,
+        connectTimeout: 60000, // 60 seconds
+        commandTimeout: 10000  // 10 seconds per command
+      },
+      retry_strategy: (options) => {
+        if (options.error && options.error.code === 'ECONNREFUSED') {
+          return new Error('The server refused the connection');
+        }
+        if (options.total_retry_time > 1000 * 60 * 60) {
+          return new Error('Retry time exhausted');
+        }
+        if (options.attempt > 10) {
+          return undefined;
+        }
+        return Math.min(options.attempt * 100, 3000);
       }
+    });
+    
+    redisClient.on('error', (err) => {
+      console.error('Redis Client Error:', err);
+      redisClient = null;
+    });
+    
+    redisClient.on('connect', () => {
+      console.log('✅ Callback Redis connected successfully');
+    });
+    
+    redisClient.on('reconnecting', () => {
+      console.log('🔄 Callback Redis reconnecting...');
     });
     
     await redisClient.connect();
